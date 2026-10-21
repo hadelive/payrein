@@ -1,4 +1,4 @@
-.PHONY: build build-test-gas test test-security check-live fixtures
+.PHONY: build build-test-gas test test-security check-live fixtures devnet
 
 build:
 	cargo near build non-reproducible-wasm --manifest-path contracts/policy-vault/Cargo.toml
@@ -19,3 +19,7 @@ check-live:
 
 fixtures:
 	python3 -I scripts/fetch-fixtures.py
+
+# Local sandbox with the demo policy; writes target/devnet.json. Ctrl-C to stop.
+devnet: build
+	cargo run -p security-tests --example devnet

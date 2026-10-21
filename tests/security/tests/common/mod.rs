@@ -88,6 +88,11 @@ pub async fn setup() -> Result<Env> {
 }
 
 pub async fn setup_with(test_gas: bool) -> Result<Env> {
+    setup_custom(test_gas, None).await
+}
+
+/// `policy`: overrides the fixture policy (the devnet uses the demo's scaled-down one).
+pub async fn setup_custom(test_gas: bool, policy_override: Option<Value>) -> Result<Env> {
     let worker = near_workspaces::sandbox().await?;
     let root = worker.root_account()?;
 
@@ -160,7 +165,7 @@ pub async fn setup_with(test_gas: bool) -> Result<Env> {
             "owner": owner.id(),
             "agent": agent.id(),
             "intents": intents.id(),
-            "policy": policy(&token),
+            "policy": policy_override.unwrap_or_else(|| policy(&token)),
             "merchants": [{ "account_id": shop.id(), "label": "Report Shop" }],
         })))
         .transact()
