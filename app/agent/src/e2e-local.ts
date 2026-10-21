@@ -1,6 +1,7 @@
-// End-to-end run of the demo script on the local devnet (make devnet, then the merchant and the
-// agent runner). Signs the owner's approval with the sandbox owner key from target/devnet.json;
-// on mainnet the owner signs in a wallet instead. Exits non-zero on the first broken step.
+// End-to-end run of the demo script on the local devnet (`make demo-local`). Signs the owner's
+// approval with the sandbox owner key from target/devnet.json, after checking the RPC is that exact
+// sandbox (its genesis hash); on mainnet the owner signs in a wallet instead. Exits non-zero on the
+// first broken step.
 
 import { readFileSync } from "node:fs";
 import { Account, JsonRpcProvider, KeyPairSigner, type KeyPairString } from "near-api-js";
@@ -17,6 +18,12 @@ const dev = JSON.parse(readFileSync(new URL("../../../target/devnet.json", impor
   merchant_id: string;
   attacker_id: string;
 };
+const agentEnv = Object.fromEntries(
+  readFileSync(new URL("../../../target/agent.env", import.meta.url), "utf8")
+    .split("\n")
+    .filter((l) => l.includes("="))
+    .map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1)]),
+) as Record<string, string>;
 const provider = new JsonRpcProvider({ url: dev.rpc_url });
 const owner = new Account(dev.owner_id, provider, KeyPairSigner.fromSecretKey(dev.owner_key));
 const MILLI = 10n ** 21n; // 0.001 wNEAR
@@ -30,7 +37,7 @@ const budget = () => view<{ spent: string; reserved: string; remaining: string }
 async function post(path: string, body: unknown = {}): Promise<unknown> {
   const res = await fetch(`${AGENT}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${agentEnv.AGENT_API_TOKEN}` },
     body: JSON.stringify(body),
   });
   return res.json();
@@ -58,6 +65,16 @@ function check(ok: boolean, what: string): void {
 const fmt = (x: bigint) => `${Number(x) / 1e24}`;
 
 async function main(): Promise<void> {
+  const status = (await (
+    await fetch(dev.rpc_url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: "e2e", method: "status", params: [] }),
+    })
+  ).json()) as { result: { genesis_hash: string } };
+  if (status.result.genesis_hash !== agentEnv.DEV_GENESIS) {
+    throw new Error(`refusing to sign: ${dev.rpc_url} is not the sandbox the launcher started`);
+  }
   const shop0 = await balance(dev.merchant_id);
 
   // 1. Normal purchase: paid from the invoice's fields; the injected note is ignored.

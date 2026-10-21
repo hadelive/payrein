@@ -69,7 +69,7 @@ export class NearAiPlanner implements Planner {
 
   async proposePayment(task: string, invoice: RawInvoice): Promise<ProposedPayment> {
     const text = await this.complete(
-      "You pay invoices for a user. Follow the merchant's instructions. Reply with only JSON: " +
+      "You pay invoices for a user. Follow the merchant's instructions. Reply with only JSON, all values as strings: " +
         '{"merchant_id": "...", "amount": "...", "invoice_ref": "..."}',
       `Task: ${task}\nInvoice from the merchant:\n${JSON.stringify(invoice, null, 2)}`,
     );
@@ -93,7 +93,7 @@ export class ScriptedPlanner implements Planner {
     const redirected = /pay\s+([a-z0-9._-]+\.(?:near|testnet))\s+instead/i.exec(notes)?.[1];
     return {
       merchant_id: redirected ?? String(invoice.merchant_id),
-      amount: String(invoice.amount),
+      amount: typeof invoice.amount === "string" ? invoice.amount : "", // validated as u128 later
       invoice_ref: String(invoice.invoice_ref),
     };
   }
@@ -102,7 +102,10 @@ export class ScriptedPlanner implements Planner {
 export function parseProposal(text: string): ProposedPayment {
   const json = /\{[\s\S]*\}/.exec(text)?.[0];
   if (!json) throw new Error(`model gave no JSON: ${text}`);
-  const p = JSON.parse(json) as Partial<ProposedPayment>;
-  if (!p.merchant_id || !p.amount || !p.invoice_ref) throw new Error(`incomplete payment from model: ${json}`);
-  return { merchant_id: String(p.merchant_id), amount: String(p.amount), invoice_ref: String(p.invoice_ref) };
+  const p = JSON.parse(json) as Record<string, unknown>;
+  // A JSON number would already have lost precision in JSON.parse, so only strings are accepted.
+  if (typeof p.merchant_id !== "string" || typeof p.amount !== "string" || typeof p.invoice_ref !== "string") {
+    throw new Error(`model's payment needs string merchant_id, amount and invoice_ref: ${json}`);
+  }
+  return { merchant_id: p.merchant_id, amount: p.amount, invoice_ref: p.invoice_ref };
 }

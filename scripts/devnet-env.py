@@ -7,11 +7,25 @@ Usage: python3 -I scripts/devnet-env.py [scripted|nearai]
 
 import json
 import pathlib
+import secrets
 import sys
+import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 dev = json.loads((ROOT / "target/devnet.json").read_text())
 planner = sys.argv[1] if len(sys.argv) > 1 else "scripted"
+api_token = secrets.token_hex(24)
+
+
+def genesis_hash(rpc_url):
+    body = json.dumps({"jsonrpc": "2.0", "id": "env", "method": "status", "params": []}).encode()
+    req = urllib.request.Request(rpc_url, body, {"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return json.load(r)["result"]["genesis_hash"]
+
+
+# Read from the sandbox this launcher just started; the dev signers refuse any other chain.
+genesis = genesis_hash(dev["rpc_url"])
 
 merchant = {
     "PORT": "8787",
@@ -34,6 +48,9 @@ agent = {
     "MERCHANT_ID": dev["merchant_id"],
     "ATTACKER_ID": dev["attacker_id"],
     "PLANNER": planner,
+    "AGENT_API_TOKEN": api_token,
+    "DEMO_ATTACKS": "1",
+    "DEV_GENESIS": genesis,
 }
 
 
@@ -50,6 +67,8 @@ web = {
     "VITE_VAULT_ID": dev["vault_id"],
     "VITE_INTENTS_ID": dev["intents_id"],
     "VITE_AGENT_URL": "http://localhost:8788",
+    "VITE_AGENT_TOKEN": api_token,
+    "VITE_DEV_GENESIS": genesis,
     "VITE_DEMO": "1",
     "VITE_DEV_OWNER_ID": dev["owner_id"],
     "VITE_DEV_OWNER_KEY": dev["owner_key"],

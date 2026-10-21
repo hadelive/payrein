@@ -1,6 +1,6 @@
 # Architecture
 
-Design draft, 21 Oct 2026, revised after the Codex design review. Contract behaviour is in [payment-spec.md](payment-spec.md); this file
+Design, 21 Oct 2026, revised after the Codex design review and updated to match the build. Contract behaviour is in [payment-spec.md](payment-spec.md); this file
 covers the parts around it and the app's screens.
 
 ## Parts
@@ -9,11 +9,13 @@ covers the parts around it and the app's screens.
 |---|---|---|---|
 | Policy vault | `contracts/policy-vault` | Rust, near-sdk | the funds' authority; all checks |
 | Agent runner | `app/agent` | Node, TypeScript, near-api-js | the agent's function-call keys (env vars), never its full-access key |
-| Owner app | `app/web` | Vite, React, NEAR wallet selector | nothing secret; the owner signs in their wallet |
+| Owner app | `app/web` | Vite, React, NEAR Wallet Selector (MyNearWallet, Intear) | nothing secret on mainnet; the owner signs in their wallet. On the local devnet only, a labelled dev signer uses the sandbox owner key and refuses any non-local RPC |
 | Demo merchant | `demo/merchant` | Node, Hono, SQLite | its account id and invoices; reads chain, signs nothing |
 | Security tests | `tests/security` | Rust, near-workspaces | sandbox keys only |
 
-The agent's model call goes to NEAR AI Cloud (OpenAI-compatible API, a TEE model). The model only
+The agent's model call goes to NEAR AI Cloud (OpenAI-compatible API; the model is a setting, and no
+claim is made about TEE inference until the chosen model's attestation is checked). A `scripted`
+planner that obeys the merchant's text stands in for the model in offline demos. The model only
 picks what to buy and from which merchant listing; the runner builds the `PaymentRequest` from the
 merchant's invoice fields. The model's output is never the payment, and the contract checks the
 payment anyway.
@@ -85,5 +87,5 @@ tests/security/  tests/fixtures/   (pinned intents.wasm, wrap.wasm, SOURCE.md)
 docs/ architecture.md threat-model.md payment-spec.md acceptance.md
 evidence/
 .env.example
-Makefile             test, test-security, check-live, demo-local
+Makefile             build, test, test-security, check-live, fixtures, devnet, demo-local
 ```

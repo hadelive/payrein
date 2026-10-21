@@ -337,8 +337,8 @@ async fn t15c_set_agent_frees_slots() -> Result<()> {
     Ok(())
 }
 
-/// The payment and a withdrawal of everything land together; whichever wins, the budget follows
-/// the transfer's real outcome.
+/// The payment and a withdrawal of everything land together. Whichever transfer wins, exactly one
+/// of them moves funds, and the budget follows the payment's real outcome.
 #[tokio::test]
 async fn t16a_withdraw_racing_a_dispatch() -> Result<()> {
     let env = setup().await?;
@@ -356,13 +356,26 @@ async fn t16a_withdraw_racing_a_dispatch() -> Result<()> {
         .gas(Gas::from_tgas(100))
         .transact_async()
         .await?;
-    let (_pay, _drain) = (pay.await?, drain.await?);
+    let (pay, drain) = (pay.await?, drain.await?);
+    let op: Value = pay.into_result()?.json()?; // admission itself must succeed
+    let status = env.op_status(&op_id(&op)).await?;
+    let withdrew = env.balance(env.owner.id()).await? == 10 * W;
+    let drain_failed = drain.receipt_failures().iter().any(|o| &o.executor_id == env.intents.id());
+    println!("t16a: payment {status}, withdrawal {}", if withdrew { "succeeded" } else { "failed" });
 
-    let shop = env.balance(env.shop.id()).await?;
-    let (spent, reserved) = env.budget().await?;
-    assert_eq!(reserved, 0);
-    assert_eq!(spent, shop, "budget charged {spent}, merchant received {shop}");
-    println!("t16a: merchant received {shop}");
+    match status.as_str() {
+        "Settled" => {
+            ensure!(!withdrew && drain_failed, "both transfers moved funds");
+            assert_eq!(env.balance(env.shop.id()).await?, w(20));
+            assert_eq!(env.budget().await?, (w(20), 0));
+        }
+        "Failed" => {
+            ensure!(withdrew, "neither transfer moved funds");
+            assert_eq!(env.balance(env.shop.id()).await?, 0);
+            assert_eq!(env.budget().await?, (0, 0));
+        }
+        other => anyhow::bail!("payment ended {other}"),
+    }
     Ok(())
 }
 
@@ -402,22 +415,25 @@ async fn t16e_failed_transfer_refunds_the_yocto_to_the_vault() -> Result<()> {
     let env = setup().await?;
     env.owner_call("withdraw", json!({ "amount": (10 * W).to_string() })).await?.into_result()?;
     let res = env.request(env.shop.id(), w(10)).await?;
-    for o in res.receipt_outcomes() {
-        println!("{} burnt {} failed {}", o.executor_id, o.gas_burnt, o.is_failure());
-    }
-    let failed_transfer = res
-        .receipt_outcomes()
-        .iter()
-        .position(|o| &o.executor_id == env.intents.id() && o.is_failure())
-        .expect("the transfer receipt failed");
-    // The deposit refund is the receipt the failed transfer sends back to its predecessor, the
-    // vault: executed on the vault, with no logs (unlike the callback, which emits `failed`).
-    let refund = &res.receipt_outcomes()[failed_transfer + 1];
-    ensure!(
-        refund.executor_id == env.vault && refund.logs.is_empty() && refund.is_success(),
-        "no refund receipt to the vault"
-    );
     assert_eq!(events(&res, "failed").len(), 1);
+
+    let receipts = tx_receipts(&env, &res, env.agent.id()).await?;
+    let attached: Vec<_> = receipts
+        .iter()
+        .filter(|r| r["receiver_id"] == json!(env.intents.id()))
+        .flat_map(actions)
+        .filter_map(|a| a["FunctionCall"]["deposit"].as_str().map(str::to_string))
+        .collect();
+    assert_eq!(attached, vec!["1"], "the vault attaches exactly 1 yocto to mt_transfer");
+    // The runtime refunds a failed receipt's deposit to its predecessor, the vault.
+    let refunds: Vec<_> = receipts
+        .iter()
+        .filter(|r| r["predecessor_id"] == "system" && r["receiver_id"] == json!(env.vault))
+        .flat_map(actions)
+        .filter_map(|a| a["Transfer"]["deposit"].as_str().map(str::to_string))
+        .filter(|d| d != "0")
+        .collect();
+    assert_eq!(refunds, vec!["1"], "refund of the 1 yocto deposit to the vault");
     Ok(())
 }
 
@@ -436,7 +452,9 @@ async fn t17b_starved_callback_holds_budget_until_owner_recovery() -> Result<()>
     env.advance(610).await?;
     env.owner_call("release_stuck", release.clone()).await?.into_result()?;
     assert_eq!(env.op_status(&op_id(&op)).await?, "Settled");
+    assert_eq!(env.budget().await?, (w(10), 0)); // charged once, reservation freed
     expect_err(env.owner_call("release_stuck", release).await?, "NotDispatched")?;
+    assert_eq!(env.budget().await?, (w(10), 0));
     Ok(())
 }
 
@@ -455,14 +473,29 @@ async fn t17c_insufficient_gas_stores_nothing() -> Result<()> {
     Ok(())
 }
 
-/// Gas table for the evidence folder: the static allocations must cover each step at least twice
-/// with the longest inputs the vault accepts.
+/// Gas table for the evidence folder, measured with the vault's state at its bounds: 32 merchants,
+/// a full ring of recent records, awaiting ops for cleanup to scan, and a 64-byte invoice. The
+/// static allocations must cover each step twice, and the receipts must carry exactly them.
 #[tokio::test]
 async fn t17d_gas_table() -> Result<()> {
     let env = setup().await?;
-    let mut req = env.req(env.shop.id(), w(10)).await?;
+    for i in 1..32 {
+        env.owner_call("add_merchant", json!({ "merchant": { "account_id": format!("m{i}.test.near"), "label": "x".repeat(32) } }))
+            .await?
+            .into_result()?;
+    }
+    for _ in 0..70 {
+        env.pay(w(1)).await?; // fills the recent ring
+    }
+    for _ in 0..3 {
+        env.pay(w(50)).await?; // awaiting approval, scanned by cleanup
+    }
+    let mut req = env.req(env.shop.id(), w(1)).await?;
     req["invoice_ref"] = json!("x".repeat(64));
     let res = env.request_with(0, req).await?;
+    let op: Value = res.clone().into_result()?.json()?;
+    assert_eq!(env.op_status(&op_id(&op)).await?, "Settled");
+
     let burnt = |who: &near_workspaces::AccountId, nth: usize| {
         res.receipt_outcomes().iter().filter(|o| &o.executor_id == who).nth(nth).map(|o| o.gas_burnt.as_gas())
     };
@@ -473,6 +506,19 @@ async fn t17d_gas_table() -> Result<()> {
     ensure!(transfer * 2 <= Gas::from_tgas(15).as_gas(), "mt_transfer {transfer}");
     ensure!(callback * 2 <= Gas::from_tgas(10).as_gas(), "on_settled {callback}");
     ensure!(request * 2 <= Gas::from_tgas(15).as_gas(), "request_payment {request}");
+
+    // Unused-gas weight 0: each promise gets exactly its static gas, not a share of the rest.
+    let receipts = tx_receipts(&env, &res, env.agent.id()).await?;
+    let gas_of = |method: &str| -> Vec<u64> {
+        receipts
+            .iter()
+            .flat_map(actions)
+            .filter(|a| a["FunctionCall"]["method_name"] == method)
+            .filter_map(|a| a["FunctionCall"]["gas"].as_u64())
+            .collect()
+    };
+    assert_eq!(gas_of("mt_transfer"), vec![Gas::from_tgas(15).as_gas()]);
+    assert_eq!(gas_of("on_settled"), vec![Gas::from_tgas(10).as_gas()]);
     Ok(())
 }
 

@@ -346,3 +346,19 @@ pub fn rejection(res: anyhow::Result<ExecutionFinalResult>) -> String {
         },
     }
 }
+
+/// Every receipt of a transaction with its actions (RPC `EXPERIMENTAL_tx_status`), for checks the
+/// execution outcomes cannot show: attached gas, refund deposits, predecessors.
+pub async fn tx_receipts(env: &Env, res: &ExecutionFinalResult, sender: &AccountId) -> Result<Vec<Value>> {
+    let body = json!({
+        "jsonrpc": "2.0", "id": "t", "method": "EXPERIMENTAL_tx_status",
+        "params": { "tx_hash": res.outcome().transaction_hash.to_string(), "sender_account_id": sender, "wait_until": "FINAL" },
+    });
+    let out: Value = reqwest::Client::new().post(env.worker.rpc_addr()).json(&body).send().await?.json().await?;
+    Ok(out["result"]["receipts"].as_array().cloned().unwrap_or_default())
+}
+
+/// The actions of `receipt`, if it is an action receipt.
+pub fn actions(receipt: &Value) -> Vec<Value> {
+    receipt["receipt"]["Action"]["actions"].as_array().cloned().unwrap_or_default()
+}

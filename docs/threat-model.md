@@ -68,8 +68,10 @@ native NEAR (storage); the agent's native NEAR (gas).
 | T21 | Decimals confusion in the explanation | base units in the contract; `ft_metadata.decimals` in the app | none | App test |
 | T22 | Midnight UTC boundary | fixed UTC day of dispatch | up to `2 * daily_max` across midnight: **accepted, documented** | Test asserts the bound |
 | T23 | Initialise the vault before the owner, or initialise it again | create, deploy and `new` in one transaction; `#[init]` | not reachable; second `new` fails | Test |
-| T24 | Get a report without paying: forge the `mt_transfer` event from another contract, use a failed receipt, reuse one payment for two invoices, race two deliveries | merchant checks a final, successful receipt executed by `intents.near` and consumes invoice and receipt atomically | rejected | Test (merchant) |
+| T24 | Get a report without paying: forge the `mt_transfer` event from another contract, use a failed receipt, reuse one payment for two invoices, race two deliveries, or collect someone else's paid order from the public transaction | merchant checks a final, successful receipt executed by `intents.near`, requires the buyer's delivery token, and consumes invoice and receipt atomically | rejected | Test (merchant) |
 | T25 | `op_id` or a timestamp above 2^53 loses precision in the app, so the owner's approval never matches | `U64` strings end to end, `bigint` in the app | approvals round-trip exactly | Test (app) |
+| T27 | An outsider reaches the agent runner's HTTP API and spends through the agent's keys | runner listens on loopback only; every action needs its bearer token and a JSON body; demo attack routes exist only with `DEMO_ATTACKS=1`; the vault's limits still cap anything that gets through | rejected (401/415) | Review |
+| T28 | The sandbox owner key signs on a real chain (a loopback proxy to mainnet, or a production build carrying it) | dev signer only in dev builds; a build with the key set fails; it signs only if the RPC's genesis hash is the one the local launcher recorded | refused | Build check, review |
 | T26 | Burn the agent's native NEAR on gas | finite allowance per function-call key; owner deletes keys with the offline full-access key | loss capped at the allowances | Review |
 
 ## Residual risks

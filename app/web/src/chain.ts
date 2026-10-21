@@ -9,6 +9,7 @@ export const cfg = {
   vaultId: required("VITE_VAULT_ID"),
   intentsId: import.meta.env.VITE_INTENTS_ID ?? "intents.near",
   agentUrl: import.meta.env.VITE_AGENT_URL ?? "http://localhost:8788",
+  agentToken: import.meta.env.VITE_AGENT_TOKEN ?? "",
   demo: import.meta.env.VITE_DEMO === "1",
 };
 
@@ -53,13 +54,21 @@ export interface OpRecord {
   finished_ns: string | null;
 }
 
+export interface TokenMeta {
+  symbol: string;
+  decimals: number;
+}
+
 export interface VaultState {
   config: VaultConfig;
   merchants: Merchant[];
   ops: OpRecord[];
   budget: Budget & { day: string };
   balance: string;
-  token: { symbol: string; decimals: number };
+  /** The current policy token. */
+  token: TokenMeta;
+  /** Metadata for every token seen in ops, by token id, since the policy token can change. */
+  tokens: Record<string, TokenMeta>;
   loadedAt: Date;
 }
 
@@ -82,10 +91,24 @@ export async function view<T>(contractId: string, method: string, args: object =
     method_name: method,
     args_base64: btoa(JSON.stringify(args)),
   });
-  return JSON.parse(new TextDecoder().decode(new Uint8Array(r.result))) as T;
+  return decodeView<T>(r.result);
 }
 
-let tokenMeta: { symbol: string; decimals: number } | undefined;
+const tokenMeta = new Map<string, TokenMeta>();
+
+async function metaFor(tokenId: string): Promise<TokenMeta> {
+  let m = tokenMeta.get(tokenId);
+  if (!m) {
+    m = await view<TokenMeta>(tokenId.replace(/^nep141:/, ""), "ft_metadata");
+    tokenMeta.set(tokenId, m);
+  }
+  return m;
+}
+
+/** Decodes a view result. Big numbers arrive as JSON strings and stay strings (T25). */
+export function decodeView<T>(bytes: number[]): T {
+  return JSON.parse(new TextDecoder().decode(new Uint8Array(bytes))) as T;
+}
 
 export async function loadState(): Promise<VaultState> {
   const [config, merchants, ops, budget] = await Promise.all([
@@ -95,12 +118,30 @@ export async function loadState(): Promise<VaultState> {
     view<Budget & { day: string }>(cfg.vaultId, "budget"),
   ]);
   const token = config.policy.token_id;
-  if (!tokenMeta) {
-    const ft = token.replace(/^nep141:/, "");
-    tokenMeta = await view<{ symbol: string; decimals: number }>(ft, "ft_metadata");
-  }
+  const ids = [...new Set([token, ...ops.map((r) => r.op.token_id)])];
+  const metas = await Promise.all(ids.map((id) => metaFor(id).catch(() => ({ symbol: id, decimals: 0 }))));
+  const tokens = Object.fromEntries(ids.map((id, i) => [id, metas[i]!]));
   const balance = await view<string>(cfg.intentsId, "mt_balance_of", { account_id: cfg.vaultId, token_id: token });
-  return { config, merchants, ops, budget, balance, token: tokenMeta, loadedAt: new Date() };
+  return { config, merchants, ops, budget, balance, token: tokens[token]!, tokens, loadedAt: new Date() };
+}
+
+/**
+ * Waits for a wallet-submitted transaction to finish and reports whether it succeeded. A wallet's
+ * returned outcome can be non-final, and a redirect only gives the hash.
+ */
+export async function finalOutcome(txHash: string, signerId: string): Promise<{ ok: true } | { ok: false; error: string }> {
+  const r = await rpc<{ status: { SuccessValue?: string; Failure?: unknown } }>("tx", {
+    tx_hash: txHash,
+    sender_account_id: signerId,
+    wait_until: "FINAL",
+  });
+  if (r.status.SuccessValue !== undefined) return { ok: true };
+  return { ok: false, error: JSON.stringify(r.status.Failure ?? r.status) };
+}
+
+/** The RPC's genesis hash, which identifies one sandbox run. */
+export async function genesisHash(): Promise<string> {
+  return (await rpc<{ genesis_hash: string }>("status", [])).genesis_hash;
 }
 
 export function explorerTx(hash: string): string | undefined {

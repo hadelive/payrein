@@ -73,7 +73,7 @@ export async function agentPost(path: string, body: object = {}): Promise<string
   try {
     const res = await fetch(`${cfg.agentUrl}${path}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${cfg.agentToken}` },
       body: JSON.stringify(body),
     });
     if (!res.ok) return ((await res.json()) as { error?: string }).error ?? `agent runner ${res.status}`;

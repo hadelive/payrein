@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { agentNote, agentPost, useAgentLog, type Refusal, type Step } from "./agentLog";
-import { cfg, explorerTx, loadState, type OpRecord, type VaultState } from "./chain";
-import { explain, formatAmount, rejectionSentence, utcTime, type PaymentOp } from "./explain";
-import { createSigner, takeRedirectResult, type OwnerSigner } from "./signer";
+import { cfg, explorerTx, finalOutcome, loadState, type OpRecord, type VaultState } from "./chain";
+import { explain, formatAmount, rejectionSentence, safeAmount, utcTime, type PaymentOp } from "./explain";
+import { createSigner, takeRedirectResult, vaultError as vaultCode, type OwnerSigner } from "./signer";
 
 const POLL_MS = 2000;
 
@@ -82,13 +82,23 @@ export function App() {
       setNotice({ tone: "bad", text: `${done.method}: the wallet reported ${done.error ?? "no transaction"}` });
       return;
     }
-    setNotice({ tone: "ok", text: `${done.method}: sent`, tx: done.txHash });
-    if (done.method === "approve") {
-      const op = (done.args as { op: PaymentOp }).op;
-      void agentPost("/approved", { op_id: op.op_id, tx_hash: done.txHash, signer_id: account }).then(
-        (err) => err && setNotice({ tone: "bad", text: `Approved, but delivery failed: ${err}`, tx: done.txHash }),
-      );
-    }
+    const txHash = done.txHash;
+    setNotice({ tone: "ok", text: `${done.method}: waiting for the transaction to finish…`, tx: txHash });
+    void (async () => {
+      // The return URL only proves the wallet sent something; check the transaction's final result.
+      const fin = await finalOutcome(txHash, account);
+      if (!fin.ok) {
+        const code = vaultCode(fin.error);
+        setNotice({ tone: "bad", text: `${done.method}: ${rejectionSentence(code)} (${code})`, tx: txHash });
+        return;
+      }
+      setNotice({ tone: "ok", text: `${done.method}: done`, tx: txHash });
+      if (done.method === "approve") {
+        const op = (done.args as { op: PaymentOp }).op;
+        const err = await agentPost("/approved", { op_id: op.op_id, tx_hash: txHash, signer_id: account });
+        if (err) setNotice({ tone: "bad", text: `Approved, but delivery failed: ${err}`, tx: txHash });
+      }
+    })();
   }, [account]);
 
   return (
@@ -134,8 +144,12 @@ export function App() {
           <div className="grid">
             <VaultPanel state={state} canSign={isOwner} busy={busy} ownerCall={ownerCall} />
             <Approvals state={state} steps={log.steps} canSign={isOwner} busy={busy} ownerCall={ownerCall} />
-            <Activity state={state} refusals={log.refusals} />
-            <AgentPanel steps={log.steps} online={log.online} decimals={state.token.decimals} symbol={state.token.symbol} />
+            <Isolated name="Activity">
+              <Activity state={state} refusals={log.refusals} />
+            </Isolated>
+            <Isolated name="Agent">
+              <AgentPanel steps={log.steps} online={log.online} decimals={state.token.decimals} symbol={state.token.symbol} />
+            </Isolated>
           </div>
         </>
       )}
@@ -144,6 +158,23 @@ export function App() {
 }
 
 type OwnerCall = (method: string, args: object, label: string) => Promise<void>;
+
+/** Panels that render agent-supplied data fail alone, so the owner keeps approve, reject and pause. */
+class Isolated extends Component<{ name: string; children: ReactNode }, { error: string | null }> {
+  state = { error: null as string | null };
+  static getDerivedStateFromError(e: Error) {
+    return { error: e.message };
+  }
+  render() {
+    if (!this.state.error) return this.props.children;
+    return (
+      <section className="panel">
+        <h2>{this.props.name}</h2>
+        <p className="bad">This panel could not render: {this.state.error}</p>
+      </section>
+    );
+  }
+}
 
 function TxLink({ hash }: { hash: string }) {
   const href = explorerTx(hash);
@@ -293,7 +324,12 @@ function Approvals({ state, steps, canSign, busy, ownerCall }: { state: VaultSta
 }
 
 function Activity({ state, refusals }: { state: VaultState; refusals: Refusal[] }) {
-  const f = (x: string) => formatAmount(x, state.token.decimals, 4);
+  // Each op in its own token's units; refusals come from the agent's log and may hold anything.
+  const opAmount = (op: PaymentOp) => {
+    const t = state.tokens[op.token_id] ?? state.token;
+    return `${safeAmount(op.amount, t.decimals, 4)}${op.token_id === state.config.policy.token_id ? "" : ` ${t.symbol}`}`;
+  };
+  const f = (x: unknown) => (typeof x === "string" ? safeAmount(x, state.token.decimals, 4) : String(x));
   const label = (id: string) => state.merchants.find((m) => m.account_id === id)?.label ?? id;
   type Row = { key: string; at: number; who: string; amount: string; status: string; tone: string; detail: string; tx?: string };
   const rows: Row[] = [
@@ -301,7 +337,7 @@ function Activity({ state, refusals }: { state: VaultState; refusals: Refusal[] 
       key: `op-${r.op.op_id}`,
       at: Number(BigInt(r.created_ns) / 1_000_000n),
       who: label(r.op.merchant_id),
-      amount: f(r.op.amount),
+      amount: opAmount(r.op),
       status: r.status,
       tone: r.status === "Settled" ? "ok" : r.status === "Failed" || r.status === "Rejected" ? "bad" : "",
       detail: `op ${r.op.op_id} · ${r.op.invoice_ref}`,

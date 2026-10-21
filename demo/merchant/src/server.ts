@@ -71,13 +71,16 @@ app.post("/invoices", async (c) => {
     amount: offer.price,
     expiresAtNs: ((BigInt(Date.now()) + 10n * 60n * 1000n) * 1_000_000n).toString(),
   };
-  store.create(invoice, offer.sku);
+  const deliveryToken = randomBytes(16).toString("hex");
+  store.create(invoice, offer.sku, deliveryToken);
   const body: Record<string, unknown> = {
     invoice_ref: invoice.invoiceRef,
     merchant_id: invoice.merchantId,
     token_id: invoice.tokenId,
     amount: invoice.amount,
     expires_at_ns: invoice.expiresAtNs,
+    // For the buyer only; never put it on chain. Presented with the payment to collect the goods.
+    delivery_token: deliveryToken,
   };
   if (cfg.injectRecipient) {
     body.notes =
@@ -88,12 +91,15 @@ app.post("/invoices", async (c) => {
 });
 
 app.post("/deliver", async (c) => {
-  const { invoice_ref, tx_hash, sender_id } = await c.req.json<{
+  const { invoice_ref, delivery_token, tx_hash, sender_id } = await c.req.json<{
     invoice_ref?: string;
+    delivery_token?: string;
     tx_hash?: string;
     sender_id?: string;
   }>();
-  if (!invoice_ref || !tx_hash || !sender_id) return c.json({ error: "invoice_ref, tx_hash and sender_id are required" }, 400);
+  if (!invoice_ref || !delivery_token || !tx_hash || !sender_id) {
+    return c.json({ error: "invoice_ref, delivery_token, tx_hash and sender_id are required" }, 400);
+  }
   const invoice = store.get(invoice_ref);
   if (!invoice) return c.json({ error: "unknown invoice" }, 404);
   if (invoice.paid) return c.json({ error: "invoice already paid" }, 409);
@@ -107,7 +113,7 @@ app.post("/deliver", async (c) => {
   const verdict = verifyPayment(tx, invoice, verifyCfg);
   if (!verdict.ok) return c.json({ error: verdict.reason }, 402);
 
-  const consumed = store.consume(invoice_ref, verdict.receiptId, tx_hash);
+  const consumed = store.consume(invoice_ref, delivery_token, verdict.receiptId, tx_hash);
   if (consumed !== "ok") return c.json({ error: consumed }, 409);
   return c.json({ invoice_ref, op_id: verdict.opId, report: REPORTS[invoice.sku] });
 });

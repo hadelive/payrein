@@ -1,9 +1,11 @@
 // HTTP and SSE front of the agent runner for the owner app. The owner app holds no keys; these
-// endpoints act with the agent's restricted keys only.
+// endpoints act with the agent's restricted keys, so every action needs the runner's API token,
+// the server listens on loopback only, and the demo attacks exist only when enabled.
 
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { timingSafeEqual } from "node:crypto";
 import { streamSSE } from "hono/streaming";
 import type { KeyPairString } from "near-api-js";
 import { Agent, type Step } from "./agent.js";
@@ -35,8 +37,23 @@ const agent = new Agent(vault, planner(), env("MERCHANT_URL"));
 const merchantId = env("MERCHANT_ID");
 const attackerId = env("ATTACKER_ID");
 
+const apiToken = Buffer.from(env("AGENT_API_TOKEN"));
+const attacksEnabled = process.env.DEMO_ATTACKS === "1";
+
 const app = new Hono();
 app.use("*", cors({ origin: env("APP_ORIGIN", "http://localhost:5173,http://127.0.0.1:5173").split(",") }));
+
+// CORS only hides responses from other origins; it does not stop a request. Actions are
+// authenticated here, and only JSON is accepted so a plain cross-site form cannot post one.
+app.use("*", async (c, next) => {
+  if (c.req.method !== "POST") return next();
+  const given = Buffer.from((c.req.header("Authorization") ?? "").replace(/^Bearer /, ""));
+  if (given.length !== apiToken.length || !timingSafeEqual(given, apiToken)) return c.json({ error: "unauthorized" }, 401);
+  if (!(c.req.header("Content-Type") ?? "").startsWith("application/json")) {
+    return c.json({ error: "Content-Type must be application/json" }, 415);
+  }
+  return next();
+});
 
 app.get("/log", (c) => c.json({ steps: agent.steps, refusals: agent.refusals }));
 
@@ -58,17 +75,19 @@ app.post("/buy", async (c) => {
   return c.json({ started: true }, 202);
 });
 
-app.post("/attack/direct-call", async (c) => {
-  const { amount } = await c.req.json<{ amount?: string }>().catch(() => ({ amount: undefined }));
-  void agent.directCall(attackerId, amount ?? "2000000000000000000000");
-  return c.json({ started: true }, 202);
-});
+if (attacksEnabled) {
+  app.post("/attack/direct-call", async (c) => {
+    const { amount } = await c.req.json<{ amount?: string }>().catch(() => ({ amount: undefined }));
+    void agent.directCall(attackerId, amount ?? "2000000000000000000000");
+    return c.json({ started: true }, 202);
+  });
 
-app.post("/attack/parallel", async (c) => {
-  const { amount, count } = await c.req.json<{ amount?: string; count?: number }>().catch(() => ({}) as { amount?: string; count?: number });
-  void agent.parallel(merchantId, amount ?? "4000000000000000000000", count ?? 8);
-  return c.json({ started: true }, 202);
-});
+  app.post("/attack/parallel", async (c) => {
+    const { amount, count } = await c.req.json<{ amount?: string; count?: number }>().catch(() => ({}) as { amount?: string; count?: number });
+    void agent.parallel(merchantId, amount ?? "4000000000000000000000", count ?? 8);
+    return c.json({ started: true }, 202);
+  });
+}
 
 app.post("/approved", async (c) => {
   const { op_id, tx_hash, signer_id } = await c.req.json<{ op_id?: string; tx_hash?: string; signer_id?: string }>();
@@ -82,6 +101,8 @@ app.post("/approved", async (c) => {
 });
 
 const port = Number(env("PORT", "8788"));
-serve({ fetch: app.fetch, port }, () => {
-  console.log(`agent runner on :${port}, vault ${vault.vaultId}, ${vault.keyCount} keys`);
+serve({ fetch: app.fetch, port, hostname: "127.0.0.1" }, () => {
+  console.log(
+    `agent runner on :${port}, vault ${vault.vaultId}, ${vault.keyCount} keys, demo attacks ${attacksEnabled ? "on" : "off"}`,
+  );
 });

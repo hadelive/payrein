@@ -219,17 +219,19 @@ if none does, the threat model narrows T20 to trusting the owner app.
 
 ## Merchant side (demo)
 
-The merchant issues invoices `{ invoice_ref, merchant_id, token_id, amount, expires_at }` and keeps
-them in SQLite. `POST /deliver { invoice_ref, tx_hash }` then:
+The merchant issues invoices `{ invoice_ref, merchant_id, token_id, amount, expires_at, delivery_token }`
+and keeps them in SQLite, storing only the SHA-256 of the random delivery token. The token goes to
+the buyer only, never on chain: a payment is public, so anyone who sees it knows the invoice and
+transaction. `POST /deliver { invoice_ref, delivery_token, tx_hash, sender_id }` then:
 
 1. fetches the transaction with `wait_until: FINAL` and finds a receipt **executed by
    `intents.near`** whose outcome is a success;
 2. parses that receipt's NEP-245 `mt_transfer` event: `old_owner_id == vault`,
    `new_owner_id == merchant`, a single token equal to the invoice token with the invoice amount,
    and the memo exactly `vault:<op_id>:<invoice_ref>`;
-3. in one SQLite transaction, marks the invoice paid and records `(tx_hash, receipt_id)` as used,
-   failing if either was already used;
+3. in one SQLite transaction, checks the delivery token, marks the invoice paid and records the
+   receipt as used, failing if the token is wrong or either was already used;
 4. serves the report.
 
-An event emitted by any other contract, a failed receipt, a reused payment and a second delivery
-request are each rejected.
+An event emitted by any other contract, a failed receipt, a reused payment, a second delivery
+request and an observer without the delivery token are each rejected.

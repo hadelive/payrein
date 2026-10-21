@@ -2,8 +2,12 @@
 """Shows each security test can fail: removes one vault check at a time, rebuilds, runs the tests
 that cover it, and expects them to fail (docs/acceptance.md, "Done for the suite").
 
-The contract source is restored from memory after every mutation, whatever happens.
+A mutant counts as caught only when a test matching its filter runs and fails (a compile error or
+a sandbox that never started is reported as an error, not a catch), and only after the same tests
+pass on the unmutated contract. The contract source is restored from memory whatever happens.
 """
+
+import re
 
 import pathlib
 import subprocess
@@ -58,12 +62,40 @@ def run(cmd):
     return subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
 
 
+BROKEN = ("could not compile", "error[E", "error: could not", "Failed to start sandbox")
+
+
+def outcome(package, filt, extra=()):
+    """'pass', 'fail' (a test matching `filt` ran and failed) or 'error: ...' (nothing ran)."""
+    r = run(["cargo", "test", "-p", package, *extra, filt])
+    out = r.stdout + r.stderr
+    if any(b in out for b in BROKEN):
+        return "error: build or setup failed"
+    failed = re.findall(r"^test (\S*" + re.escape(filt) + r"\S*) \.\.\. FAILED$", out, re.M)
+    ran = re.findall(r"^test (\S*" + re.escape(filt) + r"\S*) \.\.\. (?:ok|FAILED)$", out, re.M)
+    if not ran:
+        return f"error: no test matching {filt} ran"
+    if r.returncode == 0:
+        return "pass"
+    return "fail" if failed else "error: failed without a failing test"
+
+
 def tests_fail(package, filters, extra=()):
     for f in filters:
-        r = run(["cargo", "test", "-p", package, *extra, f])
-        if r.returncode == 0:
-            return False, f
+        o = outcome(package, f, extra)
+        if o != "fail":
+            return False, f"{f}: {o}"
     return True, None
+
+
+def baseline(unit, sandbox):
+    for f in unit:
+        if outcome("policy-vault", f) != "pass":
+            return f"unit {f} does not pass on the unmutated contract"
+    for f in sandbox:
+        if outcome("security-tests", f, ["--test", "security"]) != "pass":
+            return f"sandbox {f} does not pass on the unmutated contract"
+    return None
 
 
 def main():
@@ -77,6 +109,12 @@ def main():
             if original.count(old) != 1:
                 failures.append(f"{name}: anchor not found exactly once")
                 continue
+            LIB.write_text(original)
+            run(["make", "build"])
+            broken = baseline(unit, sandbox)
+            if broken:
+                failures.append(f"{name}: {broken}")
+                continue
             LIB.write_text(original.replace(old, new))
             caught, survivor = tests_fail("policy-vault", unit)
             if caught and sandbox:
@@ -84,7 +122,7 @@ def main():
                     failures.append(f"{name}: mutant did not build")
                     continue
                 caught, survivor = tests_fail("security-tests", sandbox, ["--test", "security"])
-            status = "caught" if caught else f"SURVIVED ({survivor} still passes)"
+            status = "caught" if caught else f"NOT CAUGHT ({survivor})"
             print(f"{name}: {status}", flush=True)
             if not caught:
                 failures.append(name)

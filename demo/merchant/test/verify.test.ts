@@ -76,32 +76,40 @@ describe("verifyPayment", () => {
 describe("InvoiceStore.consume", () => {
   const fresh = () => {
     const s = new InvoiceStore(join(mkdtempSync(join(tmpdir(), "merchant-")), "db.sqlite"));
-    s.create(invoice, "near-weekly");
-    s.create({ ...invoice, invoiceRef: "INV-2" }, "near-weekly");
+    s.create(invoice, "near-weekly", "tok-1");
+    s.create({ ...invoice, invoiceRef: "INV-2" }, "near-weekly", "tok-2");
     return s;
   };
 
   it("pays an invoice once", () => {
     const s = fresh();
-    expect(s.consume(invoice.invoiceRef, "r1", "tx1")).toBe("ok");
-    expect(s.consume(invoice.invoiceRef, "r2", "tx2")).toBe("already_paid");
+    expect(s.consume(invoice.invoiceRef, "tok-1", "r1", "tx1")).toBe("ok");
+    expect(s.consume(invoice.invoiceRef, "tok-1", "r2", "tx2")).toBe("already_paid");
     expect(s.get(invoice.invoiceRef)?.paid).toBe(true);
   });
 
   it("uses one payment receipt for one invoice", () => {
     const s = fresh();
-    expect(s.consume(invoice.invoiceRef, "r1", "tx1")).toBe("ok");
-    expect(s.consume("INV-2", "r1", "tx1")).toBe("receipt_used");
+    expect(s.consume(invoice.invoiceRef, "tok-1", "r1", "tx1")).toBe("ok");
+    expect(s.consume("INV-2", "tok-2", "r1", "tx1")).toBe("receipt_used");
     expect(s.get("INV-2")?.paid).toBe(false);
   });
 
   it("serves concurrent deliveries once", async () => {
     const s = fresh();
-    const results = await Promise.all([1, 2, 3].map(async () => s.consume(invoice.invoiceRef, "r1", "tx1")));
+    const results = await Promise.all([1, 2, 3].map(async () => s.consume(invoice.invoiceRef, "tok-1", "r1", "tx1")));
     expect(results.filter((r) => r === "ok")).toHaveLength(1);
   });
 
   it("refuses unknown invoices", () => {
-    expect(fresh().consume("INV-none", "r1", "tx1")).toBe("unknown_invoice");
+    expect(fresh().consume("INV-none", "tok-1", "r1", "tx1")).toBe("unknown_invoice");
+  });
+
+  it("refuses an observer who saw the payment but has no delivery token", () => {
+    const s = fresh();
+    expect(s.consume(invoice.invoiceRef, "guessed", "r1", "tx1")).toBe("wrong_delivery_token");
+    expect(s.consume(invoice.invoiceRef, "tok-2", "r1", "tx1")).toBe("wrong_delivery_token");
+    expect(s.get(invoice.invoiceRef)?.paid).toBe(false);
+    expect(s.consume(invoice.invoiceRef, "tok-1", "r1", "tx1")).toBe("ok");
   });
 });

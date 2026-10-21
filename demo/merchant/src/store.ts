@@ -1,9 +1,16 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import type { Invoice } from "./verify.js";
 
-export type ConsumeResult = "ok" | "unknown_invoice" | "already_paid" | "receipt_used";
+export type ConsumeResult = "ok" | "unknown_invoice" | "wrong_delivery_token" | "already_paid" | "receipt_used";
 
-/** Invoices and the payment receipts already used, so one payment serves one invoice once. */
+const sha256 = (s: string) => createHash("sha256").update(s).digest();
+
+/**
+ * Invoices and the payment receipts already used, so one payment serves one invoice once. A payment
+ * is public, so collecting the goods also needs the invoice's delivery token, which only the buyer
+ * received; only its hash is stored.
+ */
 export class InvoiceStore {
   private db: DatabaseSync;
 
@@ -17,6 +24,7 @@ export class InvoiceStore {
         amount TEXT NOT NULL,
         expires_at_ns TEXT NOT NULL,
         sku TEXT NOT NULL,
+        delivery_token_hash BLOB NOT NULL,
         paid_receipt TEXT,
         paid_tx TEXT
       );
@@ -24,12 +32,12 @@ export class InvoiceStore {
     `);
   }
 
-  create(invoice: Invoice, sku: string): void {
+  create(invoice: Invoice, sku: string, deliveryToken: string): void {
     this.db
       .prepare(
-        "INSERT INTO invoices (invoice_ref, merchant_id, token_id, amount, expires_at_ns, sku) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO invoices (invoice_ref, merchant_id, token_id, amount, expires_at_ns, sku, delivery_token_hash) VALUES (?, ?, ?, ?, ?, ?, ?)",
       )
-      .run(invoice.invoiceRef, invoice.merchantId, invoice.tokenId, invoice.amount, invoice.expiresAtNs, sku);
+      .run(invoice.invoiceRef, invoice.merchantId, invoice.tokenId, invoice.amount, invoice.expiresAtNs, sku, sha256(deliveryToken));
   }
 
   get(invoiceRef: string): (Invoice & { sku: string; paid: boolean }) | undefined {
@@ -48,14 +56,19 @@ export class InvoiceStore {
     };
   }
 
-  /** Marks the invoice paid by `receiptId`, atomically: fails if either was already used. */
-  consume(invoiceRef: string, receiptId: string, txHash: string): ConsumeResult {
+  /**
+   * Marks the invoice paid by `receiptId` for the holder of its delivery token, atomically: fails if
+   * the token is wrong or the invoice or receipt was already used.
+   */
+  consume(invoiceRef: string, deliveryToken: string, receiptId: string, txHash: string): ConsumeResult {
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      const row = this.db.prepare("SELECT paid_receipt FROM invoices WHERE invoice_ref = ?").get(invoiceRef) as
-        | { paid_receipt: string | null }
-        | undefined;
+      const row = this.db
+        .prepare("SELECT paid_receipt, delivery_token_hash FROM invoices WHERE invoice_ref = ?")
+        .get(invoiceRef) as { paid_receipt: string | null; delivery_token_hash: Uint8Array } | undefined;
       if (!row) return this.rollback("unknown_invoice");
+      const expected = Buffer.from(row.delivery_token_hash);
+      if (!timingSafeEqual(sha256(deliveryToken), expected)) return this.rollback("wrong_delivery_token");
       if (row.paid_receipt !== null) return this.rollback("already_paid");
       const used = this.db.prepare("SELECT 1 FROM used_receipts WHERE receipt_id = ?").get(receiptId);
       if (used) return this.rollback("receipt_used");

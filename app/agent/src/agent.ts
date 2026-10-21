@@ -27,14 +27,24 @@ export interface Refusal {
 }
 
 const KEEP = 300;
+/** The vault holds at most 16 active ops, so this many awaiting purchases is plenty. */
+const MAX_AWAITING = 16;
+
+interface Purchase {
+  run: string;
+  invoiceRef: string;
+  /** From the merchant, for the buyer only: never logged, never on chain. */
+  deliveryToken: string;
+  delivering: boolean;
+}
 
 export class Agent extends EventEmitter {
   readonly steps: Step[] = [];
   readonly refusals: Refusal[] = [];
   private seq = 0;
   private runs = 0;
-  /** Invoices waiting for owner approval, by op id, so delivery can follow the approval. */
-  private awaiting = new Map<string, { run: string; invoiceRef: string }>();
+  /** Purchases waiting for owner approval, by op id, so delivery can follow the approval. */
+  private awaiting = new Map<string, Purchase>();
 
   constructor(
     private vault: VaultClient,
@@ -92,7 +102,9 @@ export class Agent extends EventEmitter {
       const sku = await this.planner.chooseOffer(task, offers);
       this.log(run, "model", `chose ${sku}`);
       const invoice = await this.merchant<RawInvoice>("/invoices", { sku });
-      this.log(run, "invoice", `invoice ${String(invoice.invoice_ref)}`, invoice);
+      const deliveryToken = invoice.delivery_token;
+      if (typeof deliveryToken !== "string" || deliveryToken === "") throw new Error("invoice has no delivery token");
+      this.log(run, "invoice", `invoice ${String(invoice.invoice_ref)}`, { ...invoice, delivery_token: "(redacted)" });
 
       const cfg = await this.vault.config();
       let req: PaymentRequest;
@@ -108,31 +120,53 @@ export class Agent extends EventEmitter {
       if (!accepted) return;
       const { op, txHash } = accepted;
       if (BigInt(op.amount) > BigInt(cfg.policy.approval_threshold)) {
-        this.awaiting.set(op.op_id, { run, invoiceRef: op.invoice_ref });
+        await this.remember(op.op_id, { run, invoiceRef: op.invoice_ref, deliveryToken, delivering: false });
         this.log(run, "vault", `op ${op.op_id} awaits the owner's approval`);
         return;
       }
-      await this.deliver(run, op.invoice_ref, txHash, this.vault.agentId);
+      await this.deliver(run, op.invoice_ref, deliveryToken, txHash, this.vault.agentId);
     } catch (e) {
       this.log(run, "error", (e as Error).message);
     }
   }
 
-  /** Called by the owner app after the owner's wallet approved `opId` in transaction `txHash`. */
+  /**
+   * Called by the owner app after the owner's wallet approved `opId` in transaction `txHash`. The
+   * purchase is kept until delivery succeeds, so a failed or bogus notification can be retried.
+   */
   async approved(opId: string, txHash: string, signerId: string): Promise<void> {
     const pending = this.awaiting.get(opId);
     if (!pending) throw new Error(`op ${opId} is not one of this agent's awaiting purchases`);
-    this.awaiting.delete(opId);
-    if (!(await this.deliver(pending.run, pending.invoiceRef, txHash, signerId))) {
-      throw new Error(`delivery for op ${opId} failed; see the agent log`);
+    if (pending.delivering) throw new Error(`delivery for op ${opId} is already in progress`);
+    pending.delivering = true;
+    try {
+      if (!(await this.deliver(pending.run, pending.invoiceRef, pending.deliveryToken, txHash, signerId))) {
+        throw new Error(`delivery for op ${opId} failed; see the agent log`);
+      }
+      this.awaiting.delete(opId);
+    } finally {
+      pending.delivering = false;
     }
   }
 
+  /** Keeps at most MAX_AWAITING purchases: drops ones the vault no longer holds, then the oldest. */
+  private async remember(opId: string, p: Purchase): Promise<void> {
+    if (this.awaiting.size >= MAX_AWAITING) {
+      for (const id of [...this.awaiting.keys()]) {
+        const rec = await this.vault.view<{ status: string } | null>("get_op", { op_id: id }).catch(() => undefined);
+        if (rec === null || (rec && ["Rejected", "Failed", "Released"].includes(rec.status))) this.awaiting.delete(id);
+      }
+    }
+    while (this.awaiting.size >= MAX_AWAITING) this.awaiting.delete(this.awaiting.keys().next().value!);
+    this.awaiting.set(opId, p);
+  }
+
   /** Returns whether the merchant delivered. */
-  private async deliver(run: string, invoiceRef: string, txHash: string, senderId: string): Promise<boolean> {
+  private async deliver(run: string, invoiceRef: string, deliveryToken: string, txHash: string, senderId: string): Promise<boolean> {
     try {
       const res = await this.merchant<{ report: string }>("/deliver", {
         invoice_ref: invoiceRef,
+        delivery_token: deliveryToken,
         tx_hash: txHash,
         sender_id: senderId,
       });

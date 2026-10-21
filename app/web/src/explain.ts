@@ -27,6 +27,11 @@ export interface ExplainContext {
   budget: Budget;
 }
 
+/** Like formatAmount, but for untrusted text (e.g. the agent's log): non-numbers are shown as given. */
+export function safeAmount(base: string, decimals: number, shown = 6): string {
+  return /^-?[0-9]{1,78}$/.test(base) ? formatAmount(base, decimals, shown) : base;
+}
+
 /** `base` units as a decimal string with at most `shown` fraction digits, trailing zeros trimmed. */
 export function formatAmount(base: string | bigint, decimals: number, shown = 6): string {
   const v = BigInt(base);

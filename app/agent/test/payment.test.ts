@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { VaultConfig } from "../src/near.js";
 import { vaultError } from "../src/near.js";
-import { expiry, fromInvoice, fromProposal } from "../src/payment.js";
+import { expiry, fromInvoice, fromProposal, u128 } from "../src/payment.js";
 import { parseProposal, ScriptedPlanner } from "../src/planner.js";
 
 const cfg: VaultConfig = {
@@ -42,6 +42,29 @@ describe("fromInvoice", () => {
   it("refuses an invoice missing a field", () => {
     expect(() => fromInvoice({ ...invoice, amount: undefined }, cfg, NOW)).toThrow("amount");
   });
+
+  it("refuses an invoice that has already expired", () => {
+    expect(() => fromInvoice({ ...invoice, expires_at_ns: NOW.toString() }, cfg, NOW)).toThrow("expired");
+  });
+
+  it.each([1, 10, 30, 31])("leaves a future expiry under a %i s TTL", (ttl) => {
+    const far = (NOW + 3600n * 1_000_000_000n).toString();
+    const exp = BigInt(expiry(far, NOW, ttl));
+    expect(exp > NOW).toBe(true);
+    expect(exp <= NOW + BigInt(ttl) * 1_000_000_000n).toBe(true);
+  });
+});
+
+describe("u128", () => {
+  it("accepts decimal strings in range", () => {
+    expect(u128("340282366920938463463374607431768211455", "x")).toBe("340282366920938463463374607431768211455");
+  });
+  it.each([["not-an-amount"], ["0"], ["-1"], ["1.5"], ["340282366920938463463374607431768211456"], [123]])(
+    "rejects %s",
+    (v) => {
+      expect(() => u128(v, "amount")).toThrow();
+    },
+  );
 });
 
 describe("compromised mode (T1)", () => {
@@ -58,6 +81,10 @@ describe("compromised mode (T1)", () => {
       invoice_ref: "X",
     });
     expect(() => parseProposal("no")).toThrow();
+  });
+
+  it("refuses a numeric amount, which JSON.parse would already have rounded", () => {
+    expect(() => parseProposal('{"merchant_id":"a.near","amount":9007199254740993,"invoice_ref":"X"}')).toThrow("string");
   });
 });
 
