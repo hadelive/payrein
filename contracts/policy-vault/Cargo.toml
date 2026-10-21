@@ -1,0 +1,18 @@
+[package]
+name = "policy-vault"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+near-sdk = { workspace = true }
+
+[dev-dependencies]
+near-sdk = { workspace = true, features = ["unit-testing"] }
+
+[features]
+# Test-only build: starves the settlement callback so t17b can exercise recovery. Never released.
+test-gas = []
