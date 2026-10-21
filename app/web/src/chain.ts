@@ -4,7 +4,7 @@
 import type { Budget, PaymentOp } from "./explain";
 
 export const cfg = {
-  network: (import.meta.env.VITE_NETWORK ?? "mainnet") as "mainnet" | "devnet",
+  network: (import.meta.env.VITE_NETWORK ?? "mainnet") as "mainnet" | "testnet" | "devnet",
   rpcUrl: import.meta.env.VITE_RPC_URL ?? "https://free.rpc.fastnear.com",
   vaultId: required("VITE_VAULT_ID"),
   intentsId: import.meta.env.VITE_INTENTS_ID ?? "intents.near",
@@ -145,5 +145,6 @@ export async function genesisHash(): Promise<string> {
 }
 
 export function explorerTx(hash: string): string | undefined {
-  return cfg.network === "mainnet" ? `https://nearblocks.io/txns/${hash}` : undefined;
+  if (cfg.network === "mainnet") return `https://nearblocks.io/txns/${hash}`;
+  return cfg.network === "testnet" ? `https://testnet.nearblocks.io/txns/${hash}` : undefined;
 }

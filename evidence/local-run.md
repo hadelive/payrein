@@ -14,7 +14,7 @@ in `tests/fixtures/` (mainnet block 220928157; `intents.near` code hash
 | Merchant | `pnpm --filter @vault/merchant test` | 18 passed |
 | Agent runner | `pnpm --filter @vault/agent test` | 20 passed |
 | Owner app | `pnpm --filter @vault/web test` | 12 passed |
-| End to end on the local devnet | `pnpm --filter @vault/agent e2e:local` | all 11 checks passed (below) |
+| End to end on the local devnet | `pnpm --filter @vault/agent e2e devnet` | all 11 checks passed (below) |
 
 ## Mutation check
 
@@ -46,7 +46,7 @@ callback, and a finished op has already left the active list.
 
 ## End-to-end run on the local devnet
 
-`make demo-local`, then `pnpm --filter @vault/agent e2e:local` (demo policy: per payment 0.01,
+`make demo-local`, then `pnpm --filter @vault/agent e2e devnet` (demo policy: per payment 0.01,
 approval above 0.005, daily 0.03 wNEAR):
 
 ```

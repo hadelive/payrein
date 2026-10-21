@@ -1,20 +1,26 @@
-// End-to-end run of the demo script on the local devnet (`make demo-local`). Signs the owner's
-// approval with the sandbox owner key from target/devnet.json, after checking the RPC is that exact
-// sandbox (its genesis hash); on mainnet the owner signs in a wallet instead. Exits non-zero on the
-// first broken step.
+// End-to-end run of the demo script against `make demo-local` (devnet) or `make demo-testnet`.
+// Signs the owner's approval itself: on devnet with the sandbox owner key, after checking the RPC is
+// that exact sandbox (its genesis hash); on testnet with the owner's key file, after checking the
+// chain id. On mainnet the owner signs in a wallet instead. Needs the day's budget unused. Exits
+// non-zero on the first broken step.
+//
+// Usage: tsx src/e2e.ts devnet|testnet
 
 import { readFileSync } from "node:fs";
 import { Account, JsonRpcProvider, KeyPairSigner, type KeyPairString } from "near-api-js";
 import type { Step } from "./agent.js";
 
 const AGENT = "http://localhost:8788";
-const dev = JSON.parse(readFileSync(new URL("../../../target/devnet.json", import.meta.url), "utf8")) as {
+const network = process.argv[2];
+if (network !== "devnet" && network !== "testnet") throw new Error("usage: e2e.ts devnet|testnet");
+const dev = JSON.parse(readFileSync(new URL(`../../../target/${network}.json`, import.meta.url), "utf8")) as {
   rpc_url: string;
   vault_id: string;
   intents_id: string;
   token_id: string;
   owner_id: string;
-  owner_key: KeyPairString;
+  owner_key?: KeyPairString;
+  owner_key_file?: string;
   merchant_id: string;
   attacker_id: string;
 };
@@ -25,7 +31,13 @@ const agentEnv = Object.fromEntries(
     .map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1)]),
 ) as Record<string, string>;
 const provider = new JsonRpcProvider({ url: dev.rpc_url });
-const owner = new Account(dev.owner_id, provider, KeyPairSigner.fromSecretKey(dev.owner_key));
+function ownerKey(): KeyPairString {
+  if (dev.owner_key) return dev.owner_key;
+  const file = JSON.parse(readFileSync(dev.owner_key_file!, "utf8")) as { account_id: string; private_key: KeyPairString };
+  if (file.account_id !== dev.owner_id) throw new Error(`${dev.owner_key_file} is not ${dev.owner_id}'s key`);
+  return file.private_key;
+}
+const owner = new Account(dev.owner_id, provider, KeyPairSigner.fromSecretKey(ownerKey()));
 const MILLI = 10n ** 21n; // 0.001 wNEAR
 
 const view = <T>(contractId: string, method: string, args: Record<string, unknown> = {}) =>
@@ -63,17 +75,30 @@ function check(ok: boolean, what: string): void {
 }
 
 const fmt = (x: bigint) => `${Number(x) / 1e24}`;
+const txLink = (hash: string) => (network === "testnet" ? `https://testnet.nearblocks.io/txns/${hash}` : hash);
 
-async function main(): Promise<void> {
+/** Refuses any chain but the one this run is for, before anything is signed. */
+async function checkChain(): Promise<void> {
   const status = (await (
     await fetch(dev.rpc_url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ jsonrpc: "2.0", id: "e2e", method: "status", params: [] }),
     })
-  ).json()) as { result: { genesis_hash: string } };
-  if (status.result.genesis_hash !== agentEnv.DEV_GENESIS) {
+  ).json()) as { result: { chain_id: string; genesis_hash: string } };
+  if (network === "devnet" && status.result.genesis_hash !== agentEnv.DEV_GENESIS) {
     throw new Error(`refusing to sign: ${dev.rpc_url} is not the sandbox the launcher started`);
+  }
+  if (network === "testnet" && (status.result.chain_id !== "testnet" || !dev.owner_id.endsWith(".testnet"))) {
+    throw new Error(`refusing to sign: ${dev.rpc_url} reports chain ${status.result.chain_id}, not testnet`);
+  }
+}
+
+async function main(): Promise<void> {
+  await checkChain();
+  const start = await budget();
+  if (BigInt(start.spent) !== 0n || BigInt(start.reserved) !== 0n) {
+    throw new Error(`today's budget is already in use (spent ${fmt(BigInt(start.spent))}); run again after 00:00 UTC`);
   }
   const shop0 = await balance(dev.merchant_id);
 
@@ -108,6 +133,7 @@ async function main(): Promise<void> {
     gas: 100_000_000_000_000n,
     waitUntil: "FINAL",
   });
+  console.log(`     owner approval: ${txLink(approval.transaction.hash)}`);
   const delivered = (await post("/approved", { op_id: op.op_id, tx_hash: approval.transaction.hash, signer_id: dev.owner_id })) as {
     delivered?: boolean;
   };
@@ -120,11 +146,16 @@ async function main(): Promise<void> {
   check(summary === "5 accepted, 3 refused", `T5 parallel: ${summary}`);
   check(steps.filter((s) => s.text.includes("OverDaily")).length === 3, "the 3 refusals are OverDaily");
 
-  for (let i = 0; i < 20 && BigInt((await budget()).reserved) > 0n; i++) await new Promise((r) => setTimeout(r, 500));
+  for (let i = 0; i < 60 && BigInt((await budget()).reserved) > 0n; i++) await new Promise((r) => setTimeout(r, 1000));
   const b = await budget();
   check(BigInt(b.spent) === 30n * MILLI && BigInt(b.reserved) === 0n, `budget stops at the limit: spent ${fmt(BigInt(b.spent))}`);
   check((await balance(dev.merchant_id)) - shop0 === 30n * MILLI, "merchant received exactly 0.030 in total");
   console.log("all demo steps passed");
+  const { steps: all } = (await (await fetch(`${AGENT}/log`)).json()) as { steps: Step[] };
+  for (const s of all) {
+    const hash = (s.data as { txHash?: string } | undefined)?.txHash;
+    if (s.kind === "vault" && hash) console.log(`     ${s.text}: ${txLink(hash)}`);
+  }
 }
 
 main().catch((e) => {

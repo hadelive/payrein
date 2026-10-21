@@ -42,7 +42,7 @@ fn fixture(name: &str) -> Result<Vec<u8>> {
 }
 
 /// Pinned binaries, checked against tests/fixtures/SOURCE.md before use.
-fn pinned(name: &str) -> Result<Vec<u8>> {
+pub fn pinned(name: &str) -> Result<Vec<u8>> {
     let wasm = fixture(name)?;
     let hex = format!("{:x}", Sha256::digest(&wasm));
     let source = String::from_utf8(fixture("SOURCE.md")?)?;

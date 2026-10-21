@@ -1,4 +1,4 @@
-// How the owner signs. Mainnet: their wallet, which shows the call's arguments (T20). The local
+// How the owner signs. Mainnet and testnet: their wallet, which shows the call's arguments (T20). The local
 // devnet signer lives in devSigner.ts and is only reachable in a dev build.
 
 import { setupWalletSelector, type WalletSelector } from "@near-wallet-selector/core";
@@ -40,7 +40,7 @@ class WalletSigner implements OwnerSigner {
 
   async init(): Promise<void> {
     this.selector = await setupWalletSelector({
-      network: "mainnet",
+      network: cfg.network === "testnet" ? "testnet" : "mainnet",
       modules: [setupMyNearWallet(), setupIntearWallet()],
     });
     this.modal = setupModal(this.selector, { contractId: cfg.vaultId });
@@ -98,7 +98,7 @@ export async function createSigner(): Promise<OwnerSigner> {
     const { createDevSigner } = await import("./devSigner");
     return createDevSigner();
   }
-  if (cfg.network !== "mainnet") throw new Error(`network ${cfg.network} needs a dev build`);
+  if (cfg.network === "devnet") throw new Error("network devnet needs a dev build");
   const s = new WalletSigner();
   await s.init();
   return s;

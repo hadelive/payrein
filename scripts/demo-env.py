@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Writes target/merchant.env, target/agent.env and app/web/.env.local from target/devnet.json
-(sandbox-only keys; all three are git-ignored).
+"""Writes target/merchant.env, target/agent.env and app/web/.env.local from target/<network>.json
+(the agent's keys, and on devnet the sandbox owner key; all three are git-ignored). On testnet the
+owner signs in a wallet, so no owner key is written.
 
-Usage: python3 -I scripts/devnet-env.py [scripted|nearai]
+Usage: python3 -I scripts/demo-env.py devnet|testnet [scripted|nearai]
 """
 
 import json
@@ -12,8 +13,11 @@ import sys
 import urllib.request
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-dev = json.loads((ROOT / "target/devnet.json").read_text())
-planner = sys.argv[1] if len(sys.argv) > 1 else "scripted"
+network = sys.argv[1] if len(sys.argv) > 1 else ""
+if network not in ("devnet", "testnet"):
+    sys.exit("usage: demo-env.py devnet|testnet [scripted|nearai]")
+dev = json.loads((ROOT / f"target/{network}.json").read_text())
+planner = sys.argv[2] if len(sys.argv) > 2 else "scripted"
 api_token = secrets.token_hex(24)
 
 
@@ -24,8 +28,8 @@ def genesis_hash(rpc_url):
         return json.load(r)["result"]["genesis_hash"]
 
 
-# Read from the sandbox this launcher just started; the dev signers refuse any other chain.
-genesis = genesis_hash(dev["rpc_url"])
+# Devnet: read from the sandbox this launcher just started; the dev signers refuse any other chain.
+genesis = genesis_hash(dev["rpc_url"]) if network == "devnet" else None
 
 merchant = {
     "PORT": "8787",
@@ -34,7 +38,7 @@ merchant = {
     "INTENTS_ID": dev["intents_id"],
     "VAULT_ID": dev["vault_id"],
     "TOKEN_ID": dev["token_id"],
-    "DB_PATH": str(ROOT / "target/merchant.sqlite"),
+    "DB_PATH": str(ROOT / f"target/merchant-{network}.sqlite"),
     # Demo T1: the merchant tries to redirect payment to the attacker in its invoice text.
     "INJECT_RECIPIENT": dev["attacker_id"],
 }
@@ -50,8 +54,9 @@ agent = {
     "PLANNER": planner,
     "AGENT_API_TOKEN": api_token,
     "DEMO_ATTACKS": "1",
-    "DEV_GENESIS": genesis,
 }
+if genesis:
+    agent["DEV_GENESIS"] = genesis
 
 
 def write(name, values):
@@ -62,17 +67,16 @@ def write(name, values):
 
 
 web = {
-    "VITE_NETWORK": "devnet",
+    "VITE_NETWORK": network,
     "VITE_RPC_URL": dev["rpc_url"].rstrip("/"),
     "VITE_VAULT_ID": dev["vault_id"],
     "VITE_INTENTS_ID": dev["intents_id"],
     "VITE_AGENT_URL": "http://localhost:8788",
     "VITE_AGENT_TOKEN": api_token,
-    "VITE_DEV_GENESIS": genesis,
     "VITE_DEMO": "1",
-    "VITE_DEV_OWNER_ID": dev["owner_id"],
-    "VITE_DEV_OWNER_KEY": dev["owner_key"],
 }
+if genesis:
+    web |= {"VITE_DEV_GENESIS": genesis, "VITE_DEV_OWNER_ID": dev["owner_id"], "VITE_DEV_OWNER_KEY": dev["owner_key"]}
 
 write("merchant.env", merchant)
 write("agent.env", agent)

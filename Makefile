@@ -1,4 +1,4 @@
-.PHONY: build build-test-gas test test-security check-live fixtures devnet demo-local
+.PHONY: build build-test-gas test test-security check-live fixtures devnet demo-local testnet demo-testnet
 
 build:
 	cargo near build non-reproducible-wasm --manifest-path contracts/policy-vault/Cargo.toml
@@ -27,3 +27,12 @@ devnet: build
 # The whole demo locally (devnet, merchant, agent runner, owner app on :5173). Ctrl-C to stop.
 demo-local: build
 	./scripts/demo-local.sh
+
+# Testnet deployment under TESTNET_ACCOUNT (funded, key in ~/.near-credentials/testnet/); writes
+# target/testnet.json. Spends ~18.5 testnet NEAR, most of it Intents' code storage.
+testnet: build
+	cargo run -p security-tests --example testnet
+
+# The demo's services against that testnet deployment; the owner approves in a testnet wallet.
+demo-testnet:
+	NETWORK=testnet ./scripts/demo-local.sh

@@ -53,7 +53,7 @@ h3 { margin: 16px 0 6px; font-size: 14px; color: var(--muted); font-weight: 600;
 .who { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 .badge { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid var(--line); }
-.badge.devnet { background: var(--note); }
+.badge.devnet, .badge.testnet { background: var(--note); }
 
 button {
   font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--accent);

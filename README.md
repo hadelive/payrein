@@ -38,12 +38,30 @@ With `make demo-local` running, open the app and click the demo buttons in this 
 | **Approve** | The vault pays 0.008; the merchant checks the owner's transaction on chain and delivers. Spent 0.010. |
 | **T5 8 at once** | 8 requests of 0.004 from 8 keys in the same moment, 0.020 left: exactly 5 settle, 3 `refused: OverDaily`. The bar stops at the 0.030 limit. |
 
-The same script without a browser: `pnpm --filter @vault/agent e2e:local` while `make demo-local`
+The same script without a browser: `pnpm --filter @vault/agent e2e devnet` while `make demo-local`
 runs; it checks every step above and the balances.
 
 The demo uses a scripted stand-in for the model, so it needs no API key. To use a real model:
 `PLANNER=nearai NEARAI_API_KEY=... NEARAI_MODEL=<model id> make demo-local` (NEAR AI Cloud,
 OpenAI-compatible).
+
+### On testnet
+
+Testnet has no live Intents contract (`intents.testnet` holds no code), so the testnet run deploys
+the same pinned mainnet binary to `intents.<you>.testnet` and pays in the live `wrap.testnet`. Your
+testnet account is the vault's owner and approves in a testnet wallet (MyNearWallet or Intear), which
+is where the wallet's display of `approve`'s arguments is checked (T20).
+
+```sh
+# a testnet account with at least 18.5 NEAR, its key in ~/.near-credentials/testnet/<you>.testnet.json
+TESTNET_ACCOUNT=<you>.testnet make testnet   # creates intents., agent., shop., attacker., vault. under it
+make demo-testnet                            # merchant + agent + owner app on http://127.0.0.1:5173
+pnpm --filter @vault/agent e2e testnet       # optional: the same checks, approving with your key file
+```
+
+Most of the 18.5 NEAR is storage for Intents' 1.3 MB of code. The bootstrap checks the balance and
+that none of the accounts exist before it sends anything. The demo's checks assume an unused daily
+budget, so the end-to-end script runs once per UTC day.
 
 ## What is enforced, and where
 
@@ -102,12 +120,13 @@ app/agent/                agent runner: planner, restricted keys, demo attacks, 
 app/web/                  owner app: vault, approvals, activity, agent log (Vite, React)
 demo/merchant/            demo merchant: invoices, on-chain payment verification (Hono, SQLite)
 docs/                     spec, threat model, acceptance plan, architecture
-scripts/                  fixtures, devnet env, mutation check, local demo
+scripts/                  fixtures, demo env, mutation check, demo launcher
 ```
 
 ## Status
 
 - Local: everything above runs and passes.
+- Testnet: bootstrap ready (`make testnet`), not yet run.
 - Mainnet: not deployed yet. The plan is one vault with tiny amounts, created in a single
   transaction with no access key, to record mainnet evidence.
 - Timeline: design and development started on 21 October 2026.

@@ -87,5 +87,5 @@ tests/security/  tests/fixtures/   (pinned intents.wasm, wrap.wasm, SOURCE.md)
 docs/ architecture.md threat-model.md payment-spec.md acceptance.md
 evidence/
 .env.example
-Makefile             build, test, test-security, check-live, fixtures, devnet, demo-local
+Makefile             build, test, test-security, check-live, fixtures, devnet, demo-local, testnet, demo-testnet
 ```
