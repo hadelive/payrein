@@ -5,7 +5,7 @@ use anyhow::{bail, ensure, Result};
 use near_workspaces::network::Sandbox;
 use near_workspaces::operations::Function;
 use near_workspaces::result::ExecutionFinalResult;
-use near_workspaces::types::{AccessKey, Gas, KeyType, NearToken, SecretKey};
+use near_workspaces::types::{AccessKey, CryptoHash, Gas, KeyType, NearToken, SecretKey};
 use near_workspaces::{Account, AccountId, Contract, Worker};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -38,7 +38,7 @@ pub struct Env {
 
 fn fixture(name: &str) -> Result<Vec<u8>> {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../fixtures").join(name);
-    Ok(std::fs::read(&path).map_err(|e| anyhow::anyhow!("{}: {e}", path.display()))?)
+    std::fs::read(&path).map_err(|e| anyhow::anyhow!("{}: {e}", path.display()))
 }
 
 /// Pinned binaries, checked against tests/fixtures/SOURCE.md before use.
@@ -233,6 +233,19 @@ impl Env {
         Ok(self.view("get_config", json!({})).await?["policy"]["version"].as_u64().unwrap())
     }
 
+    /// Produces blocks until chain time has moved at least `secs` seconds.
+    pub async fn advance(&self, secs: u64) -> Result<()> {
+        let target = self.now_ns().await? + secs * 1_000_000_000;
+        while self.now_ns().await? < target {
+            self.worker.fast_forward(20).await?;
+        }
+        Ok(())
+    }
+
+    pub async fn height(&self, block: CryptoHash) -> Result<u64> {
+        Ok(self.worker.view_block().block_hash(block).await?.height())
+    }
+
     pub async fn now_ns(&self) -> Result<u64> {
         Ok(self.worker.view_block().await?.timestamp())
     }
@@ -315,4 +328,16 @@ pub fn events(res: &ExecutionFinalResult, event: &str) -> Vec<Value> {
         .filter_map(|j| serde_json::from_str::<Value>(j).ok())
         .filter(|v| v["standard"] == "agent_vault" && v["event"] == event)
         .collect()
+}
+
+/// Text of a rejection, whether the network refused the transaction (for example an access key
+/// that does not allow the call) or the transaction ran and failed.
+pub fn rejection(res: anyhow::Result<ExecutionFinalResult>) -> String {
+    match res {
+        Err(e) => format!("{e:?}"),
+        Ok(r) => match r.into_result() {
+            Ok(_) => String::from("accepted"),
+            Err(e) => format!("{e:?}"),
+        },
+    }
 }
