@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Writes target/merchant.env and target/agent.env from target/devnet.json (sandbox-only keys).
+"""Writes target/merchant.env, target/agent.env and app/web/.env.local from target/devnet.json
+(sandbox-only keys; all three are git-ignored).
 
 Usage: python3 -I scripts/devnet-env.py [scripted|nearai]
 """
@@ -43,5 +44,20 @@ def write(name, values):
     print(path)
 
 
+web = {
+    "VITE_NETWORK": "devnet",
+    "VITE_RPC_URL": dev["rpc_url"].rstrip("/"),
+    "VITE_VAULT_ID": dev["vault_id"],
+    "VITE_INTENTS_ID": dev["intents_id"],
+    "VITE_AGENT_URL": "http://localhost:8788",
+    "VITE_DEMO": "1",
+    "VITE_DEV_OWNER_ID": dev["owner_id"],
+    "VITE_DEV_OWNER_KEY": dev["owner_key"],
+}
+
 write("merchant.env", merchant)
 write("agent.env", agent)
+web_env = ROOT / "app/web/.env.local"
+web_env.write_text("".join(f"{k}={v}\n" for k, v in web.items()))
+web_env.chmod(0o600)
+print(web_env)

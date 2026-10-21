@@ -1,4 +1,4 @@
-.PHONY: build build-test-gas test test-security check-live fixtures devnet
+.PHONY: build build-test-gas test test-security check-live fixtures devnet demo-local
 
 build:
 	cargo near build non-reproducible-wasm --manifest-path contracts/policy-vault/Cargo.toml
@@ -23,3 +23,7 @@ fixtures:
 # Local sandbox with the demo policy; writes target/devnet.json. Ctrl-C to stop.
 devnet: build
 	cargo run -p security-tests --example devnet
+
+# The whole demo locally (devnet, merchant, agent runner, owner app on :5173). Ctrl-C to stop.
+demo-local: build
+	./scripts/demo-local.sh

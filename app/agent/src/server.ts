@@ -36,7 +36,7 @@ const merchantId = env("MERCHANT_ID");
 const attackerId = env("ATTACKER_ID");
 
 const app = new Hono();
-app.use("*", cors({ origin: env("APP_ORIGIN", "http://localhost:5173") }));
+app.use("*", cors({ origin: env("APP_ORIGIN", "http://localhost:5173,http://127.0.0.1:5173").split(",") }));
 
 app.get("/log", (c) => c.json({ steps: agent.steps, refusals: agent.refusals }));
 
