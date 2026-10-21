@@ -3,4 +3,4 @@ packages:
   - "app/*"
 allowBuilds:
   esbuild: true
-  secp256k1: set this to true or false
+  secp256k1: false
