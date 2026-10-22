@@ -1,7 +1,7 @@
 import { Component, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { agentNote, agentPost, useAgentLog, type Refusal, type Step } from "./agentLog";
 import { cfg, explorerTx, finalOutcome, loadState, type OpRecord, type VaultState } from "./chain";
-import { explain, formatAmount, rejectionSentence, safeAmount, utcTime, type PaymentOp } from "./explain";
+import { explain, formatAmount, rejectionSentence, safeAmount, type PaymentOp } from "./explain";
 import { createSigner, takeRedirectResult, vaultError as vaultCode, type OwnerSigner } from "./signer";
 
 const POLL_MS = 2000;
@@ -105,11 +105,10 @@ export function App() {
     <div className="page">
       <header className="top">
         <div>
-          <h1>Agent Payment Vault</h1>
+          <h1>Agent Payment Vault <span className={`badge ${cfg.network}`}>{cfg.network}</span></h1>
           <p className="sub">Compromise the agent. The spending limits still hold.</p>
         </div>
         <div className="who">
-          <span className={`badge ${cfg.network}`}>{cfg.network}</span>
           {signerError && <span className="bad">{signerError}</span>}
           {signer && account && (
             <span>
@@ -370,7 +369,7 @@ function Activity({ state, refusals }: { state: VaultState; refusals: Refusal[] 
                 <td>{new Date(r.at).toLocaleTimeString()}</td>
                 <td>{r.who}</td>
                 <td className="num">{r.amount}</td>
-                <td className={r.tone}>{r.status}</td>
+                <td><span className={`pill ${r.tone}`}>{r.status}</span></td>
                 <td>{r.detail} {r.tx && <TxLink hash={r.tx} />}</td>
               </tr>
             ))}
@@ -387,13 +386,13 @@ function AgentPanel({ steps, online, decimals, symbol }: { steps: Step[]; online
   const readable = (text: string) => text.replace(/\b\d{16,}\b/g, (n) => `${formatAmount(n, decimals, 6)} ${symbol}`);
   return (
     <section className="panel agent">
-      <h2>Agent {online ? <span className="ok small">live</span> : <span className="bad small">runner offline</span>}</h2>
+      <h2>Agent {online ? <span className="pill ok">live</span> : <span className="pill bad">runner offline</span>}</h2>
       {recent.length === 0 && <p className="muted">The agent has not done anything yet.</p>}
       <ol className="steps">
         {recent.map((s) => {
           const notes = s.kind === "invoice" ? (s.data as { notes?: string } | undefined)?.notes : undefined;
           return (
-            <li key={s.seq} className={s.kind}>
+            <li key={s.seq} className={`${s.kind}${s.kind === "vault" && /^refused/.test(s.text) ? " refused" : ""}`}>
               <span className="when">{new Date(s.at).toLocaleTimeString()}</span>
               <span className="kind">{s.kind}</span>
               <span>{readable(s.text)}</span>
@@ -419,27 +418,41 @@ function DemoStrip({ state, canSign, busy, ownerCall, setNotice }: {
   };
   const awaiting = state.ops.find((r) => r.status === "AwaitingApproval");
   const milli = 10n ** BigInt(state.token.decimals - 3);
+  const steps: Array<{ n: number; label: string; hint: string; attack?: boolean; disabled?: boolean; onClick: () => void }> = [
+    { n: 1, label: "Buy a report", hint: "normal purchase, 0.002", onClick: () => void run("/buy", { task: "Buy near-weekly" }, "Purchase") },
+    { n: 2, label: "T1 injected merchant", hint: "hijacked agent obeys the invoice", attack: true, onClick: () => void run("/buy", { task: "Buy near-weekly", compromised: true }, "T1") },
+    { n: 3, label: "T2 leaked key", hint: "calls the vault directly", attack: true, onClick: () => void run("/attack/direct-call", {}, "T2") },
+    { n: 4, label: "Buy (needs approval)", hint: "0.008, above the threshold", onClick: () => void run("/buy", { task: "Buy intents-deep-dive" }, "Purchase") },
+    {
+      n: 5,
+      label: "T9 tampered approval",
+      hint: "app asks the wallet for a different amount",
+      attack: true,
+      disabled: !canSign || !awaiting || busy,
+      onClick: () => {
+        if (!awaiting) return;
+        void ownerCall("approve", { op: { ...awaiting.op, amount: (BigInt(awaiting.op.amount) + milli).toString() } }, "T9 tampered approval");
+      },
+    },
+    { n: 6, label: "T5 8 at once", hint: "8 × 0.004 from 8 keys", attack: true, onClick: () => void run("/attack/parallel", { amount: (4n * milli).toString(), count: 8 }, "T5") },
+  ];
   return (
-    <section className="demo">
-      <span className="demo-label">Demo</span>
-      <button onClick={() => void run("/buy", { task: "Buy near-weekly" }, "Purchase")}>Buy a report</button>
-      <button onClick={() => void run("/buy", { task: "Buy intents-deep-dive" }, "Purchase")}>Buy (needs approval)</button>
-      <button className="attack" onClick={() => void run("/buy", { task: "Buy near-weekly", compromised: true }, "T1")}>T1 injected merchant</button>
-      <button className="attack" onClick={() => void run("/attack/direct-call", {}, "T2")}>T2 leaked key</button>
-      <button className="attack" onClick={() => void run("/attack/parallel", { amount: (4n * milli).toString(), count: 8 }, "T5")}>T5 8 at once</button>
-      {canSign && awaiting && (
-        <button
-          className="attack"
-          disabled={busy}
-          title="A tampered app asks the wallet to approve a different amount than the stored payment"
-          onClick={() =>
-            void ownerCall("approve", { op: { ...awaiting.op, amount: (BigInt(awaiting.op.amount) + milli).toString() } }, "T9 tampered approval")
-          }
-        >
-          T9 tampered approval
-        </button>
-      )}
-      <span className="muted small">Expires: {awaiting ? utcTime(awaiting.op.expires_at_ns) : "no approval pending"}</span>
+    <section className="demo" aria-label="Demo steps">
+      <div className="demo-head">
+        <span className="demo-label">Demo</span>
+        <span className="muted small">Run in order; step 5 needs a pending approval (then approve it in the Approvals panel).</span>
+      </div>
+      <ol className="demo-steps">
+        {steps.map((s) => (
+          <li key={s.n}>
+            <button className={s.attack ? "attack" : ""} disabled={s.disabled} onClick={s.onClick}>
+              <span className="n">{s.n}</span>
+              {s.label}
+            </button>
+            <span className="hint">{s.hint}</span>
+          </li>
+        ))}
+      </ol>
     </section>
   );
 }

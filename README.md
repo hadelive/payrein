@@ -123,10 +123,33 @@ docs/                     spec, threat model, acceptance plan, architecture
 scripts/                  fixtures, demo env, mutation check, demo launcher
 ```
 
-## Status
+## Roadmap
+
+In priority order, each a small step from what exists:
+
+1. **Audit and mainnet pilot.** An external review of `policy-vault`, then one vault on mainnet with
+   tiny real amounts and its transaction evidence recorded here.
+2. **Vault as a library.** Publish the agent runner's `VaultClient` and the app's `explain` module as
+   a package, so any agent framework can request payments and any wallet can render an approval in
+   plain words from the same fields.
+3. **Several agents and several tokens per vault.** Today a vault has one agent and one token. The
+   policy becomes per-agent and per-token, with the same checks and the same bounded storage.
+4. **Merchant-side verification as a drop-in.** The demo merchant's receipt check (final receipt,
+   executed by Intents, exact event, memo bound to the invoice) as a small server library, so any
+   seller can accept vault payments safely.
+5. **Attested agent.** Run the agent runner in a TEE and let the vault require an attestation of the
+   runner's code before it accepts a request, closing the gap between "the agent's key" and "the
+   agent's code".
+
+## Status and timeline
 
 - Local: everything above runs and passes.
 - Testnet: bootstrap ready (`make testnet`), not yet run.
 - Mainnet: not deployed yet. The plan is one vault with tiny amounts, created in a single
   transaction with no access key, to record mainnet evidence.
-- Timeline: design and development started on 21 October 2026.
+- Timeline, stated so judges can check it against the git history: design, the contract, the attack
+  tests, the apps and the local demo were written on 21–22 October 2026, before the hackathon's
+  build window. The window (1–14 November 2026) is used for the testnet and mainnet deployments,
+  the real-model run, the wallet check, the demo video, and whatever the above turns up. The
+  hackathon rules say to build during the hackathon and say nothing about earlier work; we are
+  asking the organisers and disclose the dates here either way.
