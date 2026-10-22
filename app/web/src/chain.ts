@@ -3,21 +3,38 @@
 
 import type { Budget, PaymentOp } from "./explain";
 
+export type Network = "mainnet" | "testnet" | "devnet";
+
+// No defaults for the network, and the RPC and Intents defaults follow it: a testnet label must
+// never pair with the mainnet RPC or intents.near. Devnet values all come from the launcher.
+const DEFAULTS: Record<Network, { rpcUrl?: string; intentsId?: string }> = {
+  mainnet: { rpcUrl: "https://free.rpc.fastnear.com", intentsId: "intents.near" },
+  testnet: { rpcUrl: "https://test.rpc.fastnear.com" },
+  devnet: {},
+};
+
+function network(): Network {
+  const v = required("VITE_NETWORK");
+  if (v !== "mainnet" && v !== "testnet" && v !== "devnet") throw new Error(`VITE_NETWORK must be mainnet, testnet or devnet, not "${v}"`);
+  return v;
+}
+
+function required(name: string, fallback?: string): string {
+  const v = (import.meta.env[name] as string | undefined) || fallback;
+  if (!v) throw new Error(`${name} is not set (see app/web/.env.example)`);
+  return v;
+}
+
+const net = network();
 export const cfg = {
-  network: (import.meta.env.VITE_NETWORK ?? "mainnet") as "mainnet" | "testnet" | "devnet",
-  rpcUrl: import.meta.env.VITE_RPC_URL ?? "https://free.rpc.fastnear.com",
+  network: net,
+  rpcUrl: required("VITE_RPC_URL", DEFAULTS[net].rpcUrl),
   vaultId: required("VITE_VAULT_ID"),
-  intentsId: import.meta.env.VITE_INTENTS_ID ?? "intents.near",
+  intentsId: required("VITE_INTENTS_ID", DEFAULTS[net].intentsId),
   agentUrl: import.meta.env.VITE_AGENT_URL ?? "http://localhost:8788",
   agentToken: import.meta.env.VITE_AGENT_TOKEN ?? "",
   demo: import.meta.env.VITE_DEMO === "1",
 };
-
-function required(name: string): string {
-  const v = import.meta.env[name] as string | undefined;
-  if (!v) throw new Error(`${name} is not set (see app/web/.env.example)`);
-  return v;
-}
 
 export interface Policy {
   version: number;

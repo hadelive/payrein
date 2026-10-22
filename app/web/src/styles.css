@@ -39,22 +39,22 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
 code { background: var(--code); padding: 1px 4px; border-radius: 4px; overflow-wrap: anywhere; }
 
 .page { max-width: 1280px; margin: 0 auto; padding: 16px; }
 .top { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; }
-h1 { margin: 0; font-size: 22px; letter-spacing: -0.01em; }
-h2 { margin: 0 0 12px; font-size: 17px; }
+h1 { margin: 0; font-size: 28px; letter-spacing: -0.01em; }
+h2 { margin: 0 0 12px; font-size: 18px; }
+.num { font-variant-numeric: tabular-nums; }
 h3 { margin: 16px 0 6px; font-size: 14px; color: var(--muted); font-weight: 600; }
 .sub { margin: 2px 0 0; color: var(--muted); }
 .who { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 
 .badge { padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid var(--line); vertical-align: middle; margin-left: 6px; }
-.badge.mainnet { background: var(--ok); color: #fff; border-color: var(--ok); }
-.badge.devnet, .badge.testnet { background: var(--pending); color: #16181d; border-color: var(--pending); }
+.badge { background: var(--code); color: var(--muted); font-size: 13px; }
 .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; border: 1px solid var(--line); color: var(--muted); }
 .pill.ok { color: var(--ok); border-color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
 .pill.bad { color: var(--bad); border-color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
@@ -77,16 +77,27 @@ label.inline { display: inline-flex; gap: 6px; align-items: center; }
 .demo { margin: 12px 0; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 8px; }
 .demo-head { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: baseline; margin-bottom: 8px; }
 .demo-label { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
-ol.demo-steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+ol.demo-steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
 ol.demo-steps li { display: flex; flex-direction: column; gap: 2px; }
 ol.demo-steps button { display: flex; align-items: center; gap: 8px; text-align: left; width: 100%; min-height: 46px; line-height: 1.2; }
 ol.demo-steps .n { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; font-size: 12px; font-weight: 700; background: rgba(255,255,255,0.25); flex: none; }
 ol.demo-steps button.attack .n { background: var(--inject); }
 ol.demo-steps .hint { font-size: 12px; color: var(--muted); padding-left: 2px; }
+ol.demo-steps li.current button { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
 
-.grid { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); margin-top: 12px; }
+.grid { display: grid; gap: 16px; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); margin-top: 12px; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
-.activity, .agent { grid-column: span 1; }
+.vault { margin-top: 12px; }
+.activity { margin-top: 16px; }
+.summary { display: grid; gap: 12px 24px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-bottom: 4px; }
+.stat { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stat-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.stat-value { font-size: 30px; font-weight: 650; line-height: 1.15; letter-spacing: -0.01em; }
+.stat-value small { font-size: 14px; font-weight: 600; color: var(--muted); }
+.stat button { align-self: flex-start; margin-top: 4px; padding: 3px 10px; font-size: 13px; }
+.vault-details > summary { cursor: pointer; color: var(--muted); font-size: 14px; margin-top: 14px; }
+.vault-details h3 { margin-top: 12px; }
+.vault-details .kv { margin-top: 10px; }
 @media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
 
 .kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; margin: 0; }
@@ -95,10 +106,11 @@ ol.demo-steps .hint { font-size: 12px; color: var(--muted); padding-left: 2px; }
 ul.plain { list-style: none; padding: 0; margin: 0; }
 ul.plain li { padding: 2px 0; }
 
-.bar { height: 14px; border-radius: 7px; background: var(--code); overflow: hidden; display: flex; }
+.bar { height: 18px; border-radius: 7px; background: var(--code); overflow: hidden; display: flex; }
 .bar .spent { background: var(--spent); }
 .bar .pending { background: var(--pending); }
-.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--muted); margin-top: 6px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 14px; color: var(--muted); margin-top: 6px; }
+.legend b { color: var(--text); font-size: 16px; }
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; }
 .dot.spent { background: var(--spent); }
 .dot.pending { background: var(--pending); }
@@ -106,7 +118,8 @@ ul.plain li { padding: 2px 0; }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
 pre.call { background: var(--code); padding: 8px; border-radius: 6px; overflow-x: auto; margin: 6px 0 0; width: 100%; }
 
-.card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 12px; }
+.card { border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin-bottom: 12px; border-left: 4px solid var(--pending); }
+.card:focus { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 35%, transparent); }
 .card p { margin: 4px 0; }
 .headline { font-weight: 600; }
 .note { background: var(--note); border-radius: 6px; padding: 8px; margin: 8px 0; font-size: 14px; }

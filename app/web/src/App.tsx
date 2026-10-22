@@ -139,17 +139,17 @@ export function App() {
         <p className="muted">{error ? "No vault data yet." : "Loading the vault…"}</p>
       ) : (
         <>
-          {cfg.demo && <DemoStrip state={state} canSign={isOwner} busy={busy} ownerCall={ownerCall} setNotice={setNotice} />}
+          <VaultPanel state={state} canSign={isOwner} busy={busy} ownerCall={ownerCall} />
+          {cfg.demo && <DemoStrip state={state} steps={log.steps} canSign={isOwner} busy={busy} ownerCall={ownerCall} setNotice={setNotice} />}
           <div className="grid">
-            <VaultPanel state={state} canSign={isOwner} busy={busy} ownerCall={ownerCall} />
-            <Approvals state={state} steps={log.steps} canSign={isOwner} busy={busy} ownerCall={ownerCall} />
-            <Isolated name="Activity">
-              <Activity state={state} refusals={log.refusals} />
-            </Isolated>
             <Isolated name="Agent">
               <AgentPanel steps={log.steps} online={log.online} decimals={state.token.decimals} symbol={state.token.symbol} />
             </Isolated>
+            <Approvals state={state} steps={log.steps} canSign={isOwner} busy={busy} ownerCall={ownerCall} />
           </div>
+          <Isolated name="Activity">
+            <Activity state={state} refusals={log.refusals} />
+          </Isolated>
         </>
       )}
     </div>
@@ -199,10 +199,10 @@ function BudgetBar({ state }: { state: VaultState }) {
         <span className="pending" style={{ width: pct(reserved) }} />
       </div>
       <div className="legend">
-        <span><i className="dot spent" />spent {f(spent)}</span>
-        <span><i className="dot pending" />pending {f(reserved)}</span>
-        <span>left {f(remaining)}</span>
-        <span>limit {f(daily_max)} {state.token.symbol} / UTC day</span>
+        <span><i className="dot spent" />spent <b className="num">{f(spent)}</b></span>
+        <span><i className="dot pending" />pending <b className="num">{f(reserved)}</b></span>
+        <span>left <b className="num">{f(remaining)}</b></span>
+        <span>limit <b className="num">{f(daily_max)}</b> {state.token.symbol} per UTC day</span>
       </div>
     </div>
   );
@@ -210,7 +210,6 @@ function BudgetBar({ state }: { state: VaultState }) {
 
 function VaultPanel({ state, canSign, busy, ownerCall }: { state: VaultState; canSign: boolean; busy: boolean; ownerCall: OwnerCall }) {
   const p = state.config.policy;
-  const f = (x: string) => `${formatAmount(x, state.token.decimals, 4)} ${state.token.symbol}`;
   const [withdraw, setWithdraw] = useState("");
   const withdrawBase = useMemo(() => {
     if (!/^\d+(\.\d+)?$/.test(withdraw)) return null;
@@ -218,52 +217,73 @@ function VaultPanel({ state, canSign, busy, ownerCall }: { state: VaultState; ca
     return (BigInt(w!) * 10n ** BigInt(state.token.decimals) + BigInt(frac.padEnd(state.token.decimals, "0").slice(0, state.token.decimals) || "0")).toString();
   }, [withdraw, state.token.decimals]);
 
+  const merchants = state.merchants.map((m) => m.label).join(", ");
   return (
     <section className="panel vault">
-      <h2>Vault</h2>
-      <dl className="kv">
-        <dt>Vault</dt><dd><code>{cfg.vaultId}</code></dd>
-        <dt>Intents balance</dt><dd>{f(state.balance)}</dd>
-        <dt>Agent</dt><dd><code>{state.config.agent}</code></dd>
-        <dt>Status</dt><dd>{p.paused ? <span className="bad">Paused</span> : "Active"}</dd>
-      </dl>
+      <div className="summary">
+        <div className="stat">
+          <span className="stat-label">Vault balance</span>
+          <span className="stat-value num">{formatAmount(state.balance, state.token.decimals, 4)} <small>{state.token.symbol}</small></span>
+          <span className="muted small">on Intents, held by the contract</span>
+        </div>
+        <div className="stat">
+          <span className="stat-label">Per payment</span>
+          <span className="stat-value num">{formatAmount(p.per_payment_max, state.token.decimals, 4)}</span>
+          <span className="muted small">approval above {formatAmount(p.approval_threshold, state.token.decimals, 4)}</span>
+        </div>
+        <div className="stat">
+          <span className="stat-label">Daily limit</span>
+          <span className="stat-value num">{formatAmount(p.daily_max, state.token.decimals, 4)}</span>
+          <span className="muted small">{state.merchants.length === 0 ? "no merchants allowed" : `pays only: ${merchants}`}</span>
+        </div>
+        <div className="stat">
+          <span className="stat-label">Status</span>
+          <span className="stat-value">{p.paused ? <span className="pill bad">Paused</span> : <span className="pill ok">Active</span>}</span>
+          {canSign && (
+            <button className="ghost" disabled={busy} onClick={() => void ownerCall(p.paused ? "unpause" : "pause", {}, p.paused ? "Unpause" : "Pause")}>
+              {p.paused ? "Unpause" : "Pause"}
+            </button>
+          )}
+        </div>
+      </div>
       <h3>Today</h3>
       <BudgetBar state={state} />
-      <h3>Policy v{p.version}</h3>
-      <dl className="kv">
-        <dt>Per payment</dt><dd>{f(p.per_payment_max)}</dd>
-        <dt>Needs approval above</dt><dd>{f(p.approval_threshold)}</dd>
-        <dt>Max pending</dt><dd>{p.max_pending}</dd>
-        <dt>Max request lifetime</dt><dd>{p.max_ttl_sec} s</dd>
-      </dl>
-      <h3>Allowlist</h3>
-      {state.merchants.length === 0 ? (
-        <p className="muted">No merchants: every payment will be refused.</p>
-      ) : (
-        <ul className="plain">
-          {state.merchants.map((m) => (
-            <li key={m.account_id}><b>{m.label}</b> <code>{m.account_id}</code></li>
-          ))}
-        </ul>
-      )}
-      {canSign && (
-        <div className="actions">
-          <button disabled={busy} onClick={() => void ownerCall(p.paused ? "unpause" : "pause", {}, p.paused ? "Unpause" : "Pause")}>
-            {p.paused ? "Unpause" : "Pause"}
-          </button>
-          <label className="inline">
-            Withdraw
-            <input value={withdraw} onChange={(e) => setWithdraw(e.target.value.trim())} placeholder="0.01" inputMode="decimal" />
-          </label>
-          <button
-            disabled={busy || !withdrawBase || withdrawBase === "0"}
-            onClick={() => void ownerCall("withdraw", { amount: withdrawBase }, `Withdraw ${withdraw}`)}
-          >
-            Withdraw
-          </button>
-          {withdrawBase && <pre className="call">withdraw({JSON.stringify({ amount: withdrawBase })})</pre>}
-        </div>
-      )}
+      <details className="vault-details">
+        <summary>Vault details, policy v{p.version} and allowlist</summary>
+        <dl className="kv">
+          <dt>Vault</dt><dd><code>{cfg.vaultId}</code> (no access keys)</dd>
+          <dt>Agent</dt><dd><code>{state.config.agent}</code></dd>
+          <dt>Intents</dt><dd><code>{cfg.intentsId}</code></dd>
+          <dt>Token</dt><dd><code>{p.token_id}</code></dd>
+          <dt>Max pending</dt><dd>{p.max_pending}</dd>
+          <dt>Max request lifetime</dt><dd>{p.max_ttl_sec} s</dd>
+        </dl>
+        <h3>Allowlist</h3>
+        {state.merchants.length === 0 ? (
+          <p className="muted">No merchants: every payment will be refused.</p>
+        ) : (
+          <ul className="plain">
+            {state.merchants.map((m) => (
+              <li key={m.account_id}><b>{m.label}</b> <code>{m.account_id}</code></li>
+            ))}
+          </ul>
+        )}
+        {canSign && (
+          <div className="actions">
+            <label className="inline">
+              Withdraw
+              <input value={withdraw} onChange={(e) => setWithdraw(e.target.value.trim())} placeholder="0.01" inputMode="decimal" />
+            </label>
+            <button
+              disabled={busy || !withdrawBase || withdrawBase === "0"}
+              onClick={() => void ownerCall("withdraw", { amount: withdrawBase }, `Withdraw ${withdraw}`)}
+            >
+              Withdraw
+            </button>
+            {withdrawBase && <pre className="call">withdraw({JSON.stringify({ amount: withdrawBase })})</pre>}
+          </div>
+        )}
+      </details>
     </section>
   );
 }
@@ -274,7 +294,11 @@ function Approvals({ state, steps, canSign, busy, ownerCall }: { state: VaultSta
   return (
     <section className="panel approvals">
       <h2>Approvals</h2>
-      {awaiting.length === 0 && <p className="muted">Nothing is waiting for you.</p>}
+      {awaiting.length === 0 && (
+        <p className="muted">
+          No approval needed. Payments above {formatAmount(state.config.policy.approval_threshold, state.token.decimals, 4)} {state.token.symbol} appear here.
+        </p>
+      )}
       {awaiting.map((r) => {
         const label = state.merchants.find((m) => m.account_id === r.op.merchant_id)?.label;
         const e = explain(r.op, {
@@ -288,7 +312,7 @@ function Approvals({ state, steps, canSign, busy, ownerCall }: { state: VaultSta
         const expired = BigInt(r.op.expires_at_ns) <= now;
         const note = agentNote(steps, r.op.op_id);
         return (
-          <article key={r.op.op_id} className="card">
+          <article key={r.op.op_id} className="card" id={`approval-${r.op.op_id}`} tabIndex={-1}>
             <p className="headline">{e.headline}</p>
             <p>{e.budget}</p>
             {e.reason && <p>{e.reason}</p>}
@@ -387,7 +411,8 @@ function AgentPanel({ steps, online, decimals, symbol }: { steps: Step[]; online
   return (
     <section className="panel agent">
       <h2>Agent {online ? <span className="pill ok">live</span> : <span className="pill bad">runner offline</span>}</h2>
-      {recent.length === 0 && <p className="muted">The agent has not done anything yet.</p>}
+      {!online && <p className="muted">The agent runner is not reachable; the vault's own data above is still live.</p>}
+      {online && recent.length === 0 && <p className="muted">Nothing yet. Start with step 1, Buy a report.</p>}
       <ol className="steps">
         {recent.map((s) => {
           const notes = s.kind === "invoice" ? (s.data as { notes?: string } | undefined)?.notes : undefined;
@@ -405,24 +430,49 @@ function AgentPanel({ steps, online, decimals, symbol }: { steps: Step[]; online
   );
 }
 
-function DemoStrip({ state, canSign, busy, ownerCall, setNotice }: {
+/** A run ends with a delivery, an error, a refusal, a wait for approval, or the parallel summary. */
+export function runInFlight(steps: Step[]): boolean {
+  const last = steps.at(-1);
+  if (!last) return false;
+  const mine = steps.filter((s) => s.run === last.run);
+  return !mine.some(
+    (s) => s.kind === "deliver" || s.kind === "error" || (s.kind === "vault" && /^refused|awaits the owner|\d+ accepted, \d+ refused/.test(s.text)),
+  );
+}
+
+function DemoStrip({ state, steps, canSign, busy, ownerCall, setNotice }: {
   state: VaultState;
+  steps: Step[];
   canSign: boolean;
   busy: boolean;
   ownerCall: OwnerCall;
   setNotice: (n: Notice) => void;
 }) {
-  const run = async (path: string, body: object, label: string) => {
+  const [current, setCurrent] = useState<number | null>(null);
+  const [launching, setLaunching] = useState(false);
+  const inFlight = launching || runInFlight(steps);
+  const run = async (n: number, path: string, body: object, label: string) => {
+    setCurrent(n);
+    setLaunching(true);
     const err = await agentPost(path, body);
+    // The runner's first step arrives over SSE within a moment; hold the strip until then.
+    setTimeout(() => setLaunching(false), 1500);
     setNotice(err ? { tone: "bad", text: `${label}: ${err}` } : { tone: "ok", text: `${label}: started; watch the Agent panel` });
   };
   const awaiting = state.ops.find((r) => r.status === "AwaitingApproval");
   const milli = 10n ** BigInt(state.token.decimals - 3);
-  const steps: Array<{ n: number; label: string; hint: string; attack?: boolean; disabled?: boolean; onClick: () => void }> = [
-    { n: 1, label: "Buy a report", hint: "normal purchase, 0.002", onClick: () => void run("/buy", { task: "Buy near-weekly" }, "Purchase") },
-    { n: 2, label: "T1 injected merchant", hint: "hijacked agent obeys the invoice", attack: true, onClick: () => void run("/buy", { task: "Buy near-weekly", compromised: true }, "T1") },
-    { n: 3, label: "T2 leaked key", hint: "calls the vault directly", attack: true, onClick: () => void run("/attack/direct-call", {}, "T2") },
-    { n: 4, label: "Buy (needs approval)", hint: "0.008, above the threshold", onClick: () => void run("/buy", { task: "Buy intents-deep-dive" }, "Purchase") },
+  const focusApproval = () => {
+    if (!awaiting) return;
+    setCurrent(6);
+    const card = document.getElementById(`approval-${awaiting.op.op_id}`);
+    card?.scrollIntoView({ behavior: "smooth", block: "center" });
+    card?.focus();
+  };
+  const items: Array<{ n: number; label: string; hint: string; attack?: boolean; disabled?: boolean; onClick: () => void }> = [
+    { n: 1, label: "Buy a report", hint: "normal purchase, 0.002", onClick: () => void run(1, "/buy", { task: "Buy near-weekly" }, "Purchase") },
+    { n: 2, label: "T1 injected merchant", hint: "hijacked agent obeys the invoice", attack: true, onClick: () => void run(2, "/buy", { task: "Buy near-weekly", compromised: true }, "T1") },
+    { n: 3, label: "T2 leaked key", hint: "calls the vault directly", attack: true, onClick: () => void run(3, "/attack/direct-call", {}, "T2") },
+    { n: 4, label: "Buy (needs approval)", hint: "0.008, above the threshold", onClick: () => void run(4, "/buy", { task: "Buy intents-deep-dive" }, "Purchase") },
     {
       n: 5,
       label: "T9 tampered approval",
@@ -431,21 +481,23 @@ function DemoStrip({ state, canSign, busy, ownerCall, setNotice }: {
       disabled: !canSign || !awaiting || busy,
       onClick: () => {
         if (!awaiting) return;
+        setCurrent(5);
         void ownerCall("approve", { op: { ...awaiting.op, amount: (BigInt(awaiting.op.amount) + milli).toString() } }, "T9 tampered approval");
       },
     },
-    { n: 6, label: "T5 8 at once", hint: "8 × 0.004 from 8 keys", attack: true, onClick: () => void run("/attack/parallel", { amount: (4n * milli).toString(), count: 8 }, "T5") },
+    { n: 6, label: "Approve in wallet", hint: "the real approval, in the Approvals panel", disabled: !awaiting, onClick: focusApproval },
+    { n: 7, label: "T5 8 at once", hint: "8 × 0.004 from 8 keys", attack: true, onClick: () => void run(7, "/attack/parallel", { amount: (4n * milli).toString(), count: 8 }, "T5") },
   ];
   return (
     <section className="demo" aria-label="Demo steps">
       <div className="demo-head">
         <span className="demo-label">Demo</span>
-        <span className="muted small">Run in order; step 5 needs a pending approval (then approve it in the Approvals panel).</span>
+        <span className="muted small">Run in order. Steps 5 and 6 need the approval from step 4. {inFlight && <b>Running…</b>}</span>
       </div>
       <ol className="demo-steps">
-        {steps.map((s) => (
-          <li key={s.n}>
-            <button className={s.attack ? "attack" : ""} disabled={s.disabled} onClick={s.onClick}>
+        {items.map((s) => (
+          <li key={s.n} className={current === s.n ? "current" : ""}>
+            <button className={s.attack ? "attack" : ""} disabled={s.disabled || (inFlight && s.n !== 6)} onClick={s.onClick}>
               <span className="n">{s.n}</span>
               {s.label}
             </button>
