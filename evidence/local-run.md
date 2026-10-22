@@ -1,4 +1,4 @@
-# Local evidence (21 Oct 2026)
+# Local evidence (21–22 Oct 2026)
 
 All runs on macOS, Rust 1.97.1, cargo-near 0.22.0, Node 22.21, against the pinned mainnet binaries
 in `tests/fixtures/` (mainnet block 220928157; `intents.near` code hash
@@ -13,7 +13,7 @@ in `tests/fixtures/` (mainnet block 220928157; `intents.near` code hash
 | Mutation check | `python3 -I scripts/mutation-check.py` | 5 of 5 mutants caught (below); each covering test passes on the real contract first and must then fail on an assertion, not a build error |
 | Merchant | `pnpm --filter @vault/merchant test` | 18 passed |
 | Agent runner | `pnpm --filter @vault/agent test` | 20 passed |
-| Owner app | `pnpm --filter @vault/web test` | 12 passed |
+| Owner app | `pnpm --filter @vault/web test` | 17 passed |
 | End to end on the local devnet | `pnpm --filter @vault/agent e2e devnet` | all 11 checks passed (below) |
 
 ## Mutation check
@@ -67,8 +67,13 @@ all demo steps passed
 The same sequence was clicked through in the owner app in Chrome, with no console errors, plus
 Pause and Unpause from the app. The agent runner refused requests without its token (401).
 
+Rerun on 22 Oct after the owner app's layout change (summary first, seven numbered demo steps,
+explicit network): all 11 checks passed again. The app after that run:
+[owner-app-after-demo.png](owner-app-after-demo.png) (headless Chrome, 1280 px wide).
+
 ## Not yet done
 
+- Testnet deployment (`make testnet`) and its transaction evidence.
 - Mainnet deployment and its transaction evidence.
 - A wallet that shows `approve`'s full arguments (T20), confirmed with a screenshot.
 - A run with a real model (`PLANNER=nearai`).
