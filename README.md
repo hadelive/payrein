@@ -34,7 +34,7 @@ With `make demo-local` running, open the app and click the demo buttons in this 
 | **T1 injected merchant** | The agent now runs as if hijacked and obeys that text: `decided to pay attacker.test.near`, then `refused: MerchantNotAllowed`. Activity: *The recipient is not on the allowlist.* Attacker balance stays 0. |
 | **T2 leaked key** | A script signs with the agent's key and calls the vault directly, bypassing the app: same refusal. |
 | **Buy (needs approval)** | 0.008 is above the 0.005 threshold. Approvals shows the payment in plain words, the budget after it, why it needs approval, the exact call the wallet will show, and the agent's own note in a box marked *not checked*. |
-| **T9 tampered approval** | A tampered app asks to approve 0.009 instead of 0.008: *The approval did not match the stored payment in every field. (ApprovalMismatch)* |
+| **T9 tampered approval** | A tampered app asks to approve 0.009 instead of 0.008: *The approval did not match the stored payment in every field. (ApprovalMismatch)* The contract catches any changed field. It cannot catch an app that swaps in a different, complete awaiting payment; only the wallet's display of `approve`'s full arguments does (T20), which is why the owner reads the wallet, not the app. |
 | **Approve** | The vault pays 0.008; the merchant checks the owner's transaction on chain and delivers. Spent 0.010. |
 | **T5 8 at once** | 8 requests of 0.004 from 8 keys in the same moment, 0.020 left: exactly 5 settle, 3 `refused: OverDaily`. The bar stops at the 0.030 limit. |
 
@@ -102,7 +102,7 @@ Full threat model: [docs/threat-model.md](docs/threat-model.md).
 |---|---|
 | 27 unit tests: checks, the finish state machine, midnight, storage bound | `cargo test -p policy-vault` |
 | 25 sandbox attack tests (T1–T23) against pinned mainnet Intents | `make test-security` |
-| Every key check is load-bearing: removing it makes its tests fail, after they pass on the real contract (5/5 mutants caught) | `python3 -I scripts/mutation-check.py` |
+| Five targeted mutations (allowlist, daily limit, reservation counting, approval field binding, finish-once) each make their covering test fail after it passed on the real contract (5/5 caught). This checks those five checks, not every line | `python3 -I scripts/mutation-check.py` |
 | Merchant only delivers for a final, successful Intents receipt, once, to the buyer holding the delivery token (T24) | `demo/merchant/test` |
 | 64-bit values exact from the vault's view to the bytes of the owner's `approve` (T25); explanation template (T21) | `app/agent/test`, `app/web/test` |
 | Gas, storage and test output from the last full run | [evidence/](evidence/) |
@@ -122,6 +122,18 @@ demo/merchant/            demo merchant: invoices, on-chain payment verification
 docs/                     spec, threat model, acceptance plan, architecture
 scripts/                  fixtures, demo env, mutation check, demo launcher
 ```
+
+## Product thesis and current evidence
+
+The first users are teams whose agents buy data or API calls from suppliers they already know. They
+want small payments to go through on their own, a hard cap on what a compromised agent can lose, and
+a say on anything larger. The vault gives them that as a contract they deploy themselves plus an
+owner app; the planned agent SDK and merchant library (below) are how it would be embedded. What is
+shown today: one token, one agent identity, one demo merchant, and the attack evidence above. What is
+not: any outside team using it, any revenue, or a validated business model. The next test of the idea
+is one independent integration, measuring setup time, successful purchases, approval burden and
+operating cost. Spending limits alone are not a moat; integration quality, trusted operation and
+distribution would have to earn one.
 
 ## Roadmap
 

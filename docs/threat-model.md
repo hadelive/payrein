@@ -8,7 +8,10 @@ Design draft, 21 Oct 2026, revised after the Codex design review. Companion to
 If the agent is fully compromised (its prompt hijacked, its code replaced, its keys stolen), it can
 still only pay allowlisted merchants, in the vault's token, within the per-payment and daily limits,
 and nothing above the approval threshold without the owner approving that exact payment. It cannot
-block the vault for longer than a payment's expiry or exhaust its storage.
+exhaust the vault's storage, and it cannot hold an approval slot past that request's expiry. It can
+keep refilling the free slots with new requests (each bounded by the limits above), and a payment
+whose callback is lost stays `Dispatched`, holding its slot and its reservation, until the owner
+resolves it with `release_stuck` after 10 minutes (T17). Availability is bounded, not guaranteed.
 
 The contract enforces this, not the agent app. Every row marked **Test** becomes a security test in
 `tests/security/` (see [acceptance.md](acceptance.md)).
@@ -52,19 +55,19 @@ native NEAR (storage); the agent's native NEAR (gas).
 | T5 | Parallel requests racing the daily limit | check and reserve in one receipt; the vault's receipts run one at a time | one dispatches, the other `OverDaily` | Test + demo |
 | T6 | Request while an earlier transfer is in flight | the in-flight amount stays reserved until `finish` | counted | Test |
 | T7 | Call `on_settled` directly | `#[private]` | rejected | Test |
-| T8 | Replay a request | ids assigned by the vault; transaction replay stopped by the access-key nonce; a resubmission is a new payment within all limits | no bypass | Test |
+| T8 | Replay a request | ids assigned by the vault; a resubmission is a new payment within all limits (tested); rebroadcast of the same signed transaction is stopped by the protocol's access-key nonce (not tested, protocol behaviour) | no bypass | Test |
 | T9 | Approval for different fields than stored | `approve` compares every field | `ApprovalMismatch` | Test + demo |
 | T10 | Approval reused | approval ends the op's `AwaitingApproval` status | `NotAwaitingApproval` | Test |
 | T11 | Approval after a policy change | every change rejects awaiting ops | `NotAwaitingApproval` | Test |
 | T12 | Approval used to exceed a hard limit | `approve` re-runs the limits | `OverPerPayment` / `OverDaily` | Test |
 | T13 | Old request submitted or approved late | expiry with max TTL | `Expired` / `TtlTooLong` | Test |
 | T14 | Wrong token, zero amount, oversized memo | field checks | `WrongToken` / `ZeroAmount` / `InvoiceRefTooLong` | Test |
-| T15 | Fill pending slots or storage: approval requests left to expire, repeated failed transfers, thousands of cycles | effective pending count ignores expired; at most 16 active and 64 recent records; history in events only | storage stays under a constant; settle, reject and withdraw keep working | Test |
+| T15 | Fill pending slots or storage: approval requests left to expire, repeated failed transfers, many cycles | effective pending count ignores expired; at most 16 active and 64 recent records; history in events only | storage stays under a constant; settle, reject and withdraw keep working | Test |
 | T16 | Transfer fails after reservation: balance withdrawn, transfers paused, vault locked, auth by predecessor disabled | callback `finish(Failed)` | budget restored, 1 yocto refunded | Test (sandbox) |
 | T17 | Callback runs out of gas; owner recovery racing a late callback | `InsufficientGas` up front; static gas; `finish` acts only on `Dispatched`, once | budget charged exactly once in every order | Test (sandbox) |
 | T18 | Get an Intents public key registered for the vault, or disable its auth by predecessor | no method calls `add_public_key`, `execute_intents` or the auth toggle; no arbitrary-call method | not reachable | Review + `public_keys_of(vault) == []` in evidence |
 | T19 | Redeploy the vault | no access key ever exists on `vault` | not reachable | Evidence: empty key list |
-| T20 | App shows the owner one payment and asks the wallet to approve another | the wallet shows `approve`'s full arguments; the explanation is a template over the same fields | owner sees the mismatch, **if the chosen wallet shows full arguments** (day-2 gate; otherwise this row narrows to trusting the app) | Recorded demo |
+| T20 | App shows the owner one payment and asks the wallet to approve another | the wallet shows `approve`'s full arguments; the explanation is a template over the same fields. T9 covers a payment altered in any field; it does **not** cover an app that substitutes another complete, valid awaiting payment, which the contract accepts because every field matches that other record | owner sees the mismatch, **only if the chosen wallet shows full arguments** (day-2 gate; otherwise this row narrows to trusting the app) | Recorded demo |
 | T21 | Decimals confusion in the explanation | base units in the contract; `ft_metadata.decimals` in the app | none | App test |
 | T22 | Midnight UTC boundary | fixed UTC day of dispatch | up to `2 * daily_max` across midnight: **accepted, documented** | Test asserts the bound |
 | T23 | Initialise the vault before the owner, or initialise it again | create, deploy and `new` in one transaction; `#[init]` | not reachable; second `new` fails | Test |

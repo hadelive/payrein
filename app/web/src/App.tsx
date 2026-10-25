@@ -325,6 +325,7 @@ function Approvals({ state, steps, canSign, busy, ownerCall }: { state: VaultSta
             )}
             <details>
               <summary>Exact call your wallet will show</summary>
+              <p className="muted small">Read it in the wallet. The contract refuses any altered field, but not a different payment that is also awaiting approval.</p>
               <pre className="call">approve({JSON.stringify({ op: r.op }, null, 2)})</pre>
             </details>
             {canSign && (
