@@ -6,6 +6,13 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Model settings come from an untracked .env at the repo root (see docs/setup-checklist.md); only
+# these four keys are read, so the file never overrides what demo-env.py writes.
+if [ -f .env ]; then
+  while IFS='=' read -r k v; do
+    case "$k" in PLANNER|NEARAI_URL|NEARAI_API_KEY|NEARAI_MODEL) export "$k=$v" ;; esac
+  done < .env
+fi
 PLANNER="${PLANNER:-scripted}"
 NETWORK="${NETWORK:-devnet}"
 pids=()

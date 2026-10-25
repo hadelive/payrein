@@ -33,8 +33,9 @@ const agentEnv = Object.fromEntries(
 const provider = new JsonRpcProvider({ url: dev.rpc_url });
 function ownerKey(): KeyPairString {
   if (dev.owner_key) return dev.owner_key;
-  const file = JSON.parse(readFileSync(dev.owner_key_file!, "utf8")) as { account_id: string; private_key: KeyPairString };
-  if (file.account_id !== dev.owner_id) throw new Error(`${dev.owner_key_file} is not ${dev.owner_id}'s key`);
+  // near-cli's legacy keychain format; near-cli-rs writes no account_id, the JS near-cli did.
+  const file = JSON.parse(readFileSync(dev.owner_key_file!, "utf8")) as { account_id?: string; private_key: KeyPairString };
+  if (file.account_id && file.account_id !== dev.owner_id) throw new Error(`${dev.owner_key_file} is not ${dev.owner_id}'s key`);
   return file.private_key;
 }
 const owner = new Account(dev.owner_id, provider, KeyPairSigner.fromSecretKey(ownerKey()));

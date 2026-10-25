@@ -15,7 +15,7 @@ mod common;
 use anyhow::{bail, ensure, Context, Result};
 use common::*;
 use near_workspaces::operations::Function;
-use near_workspaces::types::{AccessKey, KeyType, NearToken, SecretKey};
+use near_workspaces::types::{AccessKey, AccessKeyPermission, KeyType, NearToken, SecretKey};
 use near_workspaces::{Account, AccountId};
 use serde_json::json;
 use std::path::PathBuf;
@@ -49,8 +49,29 @@ async fn main() -> Result<()> {
     let worker = near_workspaces::testnet().rpc_addr(RPC).await?;
     let chain = worker.status().await?.chain_id;
     ensure!(chain == "testnet", "{RPC} reports chain {chain}, not testnet");
-    let root = Account::from_file(&key_file, &worker).with_context(|| format!("reading {}", key_file.display()))?;
-    ensure!(root.id() == &root_id, "{} holds the key of {}, not {root_id}", key_file.display(), root.id());
+    // The key file is near-cli's legacy keychain format. near-cli-rs writes `private_key` and no
+    // `account_id`; the JS near-cli wrote both. Read the key ourselves and check it on chain.
+    let key_json: serde_json::Value = serde_json::from_str(
+        &std::fs::read_to_string(&key_file).with_context(|| format!("reading {}", key_file.display()))?,
+    )?;
+    if let Some(id) = key_json.get("account_id").and_then(|v| v.as_str()) {
+        ensure!(id == root_id.as_str(), "{} holds the key of {id}, not {root_id}", key_file.display());
+    }
+    let sk: SecretKey = key_json
+        .get("private_key")
+        .or_else(|| key_json.get("secret_key"))
+        .and_then(|v| v.as_str())
+        .context("key file has no private_key")?
+        .parse()?;
+    let root = Account::from_secret_key(root_id.clone(), sk.clone(), &worker);
+    let root_keys = worker.view_access_keys(&root_id).await?;
+    ensure!(
+        root_keys
+            .iter()
+            .any(|k| k.public_key == sk.public_key() && matches!(k.access_key.permission, AccessKeyPermission::FullAccess)),
+        "{} holds a key that is not a full-access key on {root_id}",
+        key_file.display()
+    );
 
     // Everything is checked before the first transaction, so a refused run spends nothing.
     let sub = |name: &str| -> Result<AccountId> { Ok(format!("{name}.{root_id}").parse()?) };
