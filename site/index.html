@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Payrein</title>
+  <meta name="description" content="Payrein is a NEAR contract that holds an AI agent’s spending money and enforces the allowlist, the limits and the owner’s approval, even when the agent is compromised.">
+  <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script>document.documentElement.classList.add('js');</script>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <svg class="visually-hidden" aria-hidden="true" width="0" height="0"><filter id="press" x="-5%" y="-10%" width="110%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="1.6" xChannelSelector="R" yChannelSelector="G"/></filter></svg>
+
+  <header class="top">
+    <p class="banner"><a href="https://nearhackathon.com/">Entered in NEAR HACKATHON, 1 to 14 November 2026.</a> Unaudited; keep amounts tiny.</p>
+    <nav class="bar" aria-label="Site">
+      <div class="container bar__row">
+        <a class="wordmark" href="#main" aria-label="Payrein, home">Payrein</a>
+        <ul class="bar__links">
+          <li><a href="#evidence">Evidence</a></li>
+          <li><a href="#attacks">Attacks</a></li>
+          <li><a href="#limits">Limits</a></li>
+          <li><a href="#run">Run it</a></li>
+        </ul>
+        <a class="btn btn--card bar__action" href="https://github.com/hadelive/payrein">Source</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero desk" aria-labelledby="hero-head">
+      <div class="container hero__grid">
+        <div class="hero__col">
+          <h1 id="hero-head"><span class="fig num" data-tick="25">25</span>attack tests. The limits held.</h1>
+          <p class="lead">Payrein holds the agent’s money on NEAR, tested against live Intents code.</p>
+          <div class="hero__actions">
+            <a class="btn btn--ink" href="#run">Run the demo</a>
+            <a class="textlink" href="#evidence">Read the evidence</a>
+          </div>
+        </div>
+        <figure class="ledger stock" aria-label="The outcome ledger from the demo run on 25 October 2026: each row is the time, the recipient, the amount and the outcome">
+          <figcaption class="ledger__head"><span>Payrein, demo run</span><time datetime="2026-10-25">25 Oct 2026</time></figcaption>
+          <table class="ledger__rows">
+            <tbody>
+              <tr><td class="num">13:28:28</td><td>Report Shop</td><td class="num">0.002</td><td><span class="stamp stamp--settled">Settled</span> <small>report delivered</small></td></tr>
+              <tr><td class="num">13:28:38</td><td>attacker.test.near</td><td class="num">0.002</td><td><span class="stamp stamp--refused">Refused</span> <small>not allowlisted</small></td></tr>
+              <tr><td class="num">13:28:46</td><td>attacker.test.near</td><td class="num">0.002</td><td><span class="stamp stamp--refused">Refused</span> <small>leaked key</small></td></tr>
+              <tr><td class="num">13:28:52</td><td>Report Shop</td><td class="num">0.008</td><td><span class="stamp stamp--waiting">Waiting</span> <small>owner approval</small></td></tr>
+              <tr><td class="num">13:35:49</td><td>Report Shop</td><td class="num">8 × 0.004</td><td><span class="stamp stamp--settled">Settled</span> <span class="ledger__count num">7</span> <span class="stamp stamp--refused">Refused</span> <span class="ledger__count num">1</span> <small>queue full</small></td></tr>
+            </tbody>
+          </table>
+          <p class="ledger__foot"><span>Spent today</span><span class="num">0.030 of 0.030 wNEAR</span></p>
+        </figure>
+      </div>
+    </section>
+
+    <section class="section section--shot" aria-label="The owner app">
+      <div class="container">
+        <figure class="shot shot--hero stock" data-slot="hero" data-kind="product" data-alt="The owner app after a demo run: the vault summary, the seven demo steps, the agent’s log and a payment waiting for approval">
+          <img src="images/screens/owner-app-full.png" width="2880" height="2764" alt="The owner app after a demo run. The vault holds 9.998 wNEAR with a 0.01 per-payment and 0.03 daily limit. The agent’s log shows a merchant’s injected instruction to pay attacker.test.near, two refusals marked MerchantNotAllowed, and a 0.008 payment waiting for the owner’s approval." fetchpriority="high">
+        </figure>
+        <p class="caption">After four demo steps on a local chain: one purchase settled, two attacks refused, one payment waiting.</p>
+      </div>
+    </section>
+
+    <section class="section" id="evidence" aria-labelledby="evidence-head">
+      <div class="container">
+        <div class="head">
+          <h2 id="evidence-head">Numbers from the last full run</h2>
+          <p class="lead">Local run, 22 October 2026, against the intents.near binary pinned from mainnet block 220928157.</p>
+        </div>
+        <dl class="figures">
+          <div><dt><b class="num">27</b></dt><dd>unit tests on the contract<code>cargo test -p policy-vault</code></dd></div>
+          <div><dt><b class="num">25</b></dt><dd>attack tests against the real Intents code<code>make test-security</code></dd></div>
+          <div><dt><b class="num">5<span class="of">of 5</span></b></dt><dd>mutations caught; each removed check fails<code>scripts/mutation-check.py</code></dd></div>
+          <div><dt><b class="num">0</b></dt><dd>access keys on the vault, so nobody can redeploy it<code>view_access_keys</code></dd></div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="section" id="attacks" aria-labelledby="attacks-head">
+      <div class="container">
+        <div class="head head--split">
+          <h2 id="attacks-head">Four attacks, the same answer</h2>
+          <p class="lead">Each runs in the demo with a scripted stand-in for the model, made to act compromised.</p>
+        </div>
+        <div class="switch" data-switch>
+          <div class="seg" role="tablist" aria-label="Attack">
+            <button type="button" role="tab" id="tab-t1" aria-controls="panel-t1" aria-selected="true">Injected merchant</button>
+            <button type="button" role="tab" id="tab-t2" aria-controls="panel-t2" aria-selected="false" tabindex="-1">Leaked key</button>
+            <button type="button" role="tab" id="tab-t9" aria-controls="panel-t9" aria-selected="false" tabindex="-1">Tampered approval</button>
+            <button type="button" role="tab" id="tab-t5" aria-controls="panel-t5" aria-selected="false" tabindex="-1">Eight at once</button>
+          </div>
+
+          <section class="attack" role="tabpanel" tabindex="0" id="panel-t1" aria-labelledby="tab-t1">
+            <div class="attack__text">
+              <h3>The invoice says pay someone else</h3>
+              <p>The merchant’s text moves the payment account to attacker.test.near, and the agent obeys.</p>
+              <p class="verdict"><span class="stamp stamp--refused">Refused</span> <code>MerchantNotAllowed</code></p>
+              <p class="plain">A plain wallet key pays the attacker.</p>
+            </div>
+            <figure class="shot stock" data-slot="attack-t1" data-kind="product" data-alt="The agent panel showing the injected merchant text and the refusal">
+              <img src="images/screens/agent-panel.png" width="1344" height="1186" alt="The agent’s log: the merchant’s injected notice, the model deciding to pay attacker.test.near, and the vault’s answer, refused: MerchantNotAllowed." loading="lazy">
+            </figure>
+          </section>
+
+          <section class="attack" role="tabpanel" tabindex="0" id="panel-t2" aria-labelledby="tab-t2" hidden>
+            <div class="attack__text">
+              <h3>A script holds the agent’s key</h3>
+              <p>It calls the vault directly, skipping the app. The key can only ask.</p>
+              <p class="verdict"><span class="stamp stamp--refused">Refused</span> <code>MerchantNotAllowed</code></p>
+              <p class="plain">A plain wallet key is the whole balance.</p>
+            </div>
+            <figure class="shot stock" data-slot="attack-t2" data-kind="product" data-alt="The activity table with the two refused attempts">
+              <img src="images/screens/activity-panel.png" width="2496" height="502" alt="The activity table: two 0.002 payments to attacker.test.near marked Refused, the recipient is not on the allowlist, and a 0.002 payment to Report Shop marked Settled." loading="lazy">
+            </figure>
+          </section>
+
+          <section class="attack" role="tabpanel" tabindex="0" id="panel-t9" aria-labelledby="tab-t9" hidden>
+            <div class="attack__text">
+              <h3>The app asks the wallet for 0.009</h3>
+              <p>The stored payment is 0.008. The contract compares every field of the approval.</p>
+              <p class="verdict"><span class="stamp stamp--refused">Refused</span> <code>ApprovalMismatch</code></p>
+              <p class="plain">A swapped payment that is also waiting would pass. Only the wallet’s display of the full call catches that.</p>
+            </div>
+            <figure class="shot stock" data-slot="attack-t9" data-kind="product" data-alt="The approval card with the exact payment and the budget after it">
+              <img src="images/screens/approvals-panel.png" width="1120" height="1186" alt="The approval card: pay 0.008 wNEAR to Report Shop for invoice INV-63b51aa1, 0.02 left after this, needs approval above the 0.005 threshold, the agent’s note marked not checked, and a collapsed disclosure of the exact call the wallet will show." loading="lazy">
+            </figure>
+          </section>
+
+          <section class="attack" role="tabpanel" tabindex="0" id="panel-t5" aria-labelledby="tab-t5" hidden>
+            <div class="attack__text">
+              <h3>Eight requests sent together</h3>
+              <p>Eight keys ask for 0.004 each while one payment still waits. The queue holds eight, so the last is refused.</p>
+              <p class="verdict"><span class="stamp stamp--settled">Settled</span> seven <span class="stamp stamp--refused">Refused</span> one, <code>TooManyPending</code></p>
+              <p class="plain">A plain wallet key sends all eight.</p>
+            </div>
+            <figure class="shot stock" data-slot="attack-t5" data-kind="product" data-alt="The activity table after eight simultaneous requests">
+              <img src="images/screens/activity-parallel.png" width="2496" height="1078" alt="The activity table after eight simultaneous 0.004 requests: seven marked Settled and one marked Refused, too many payments are already pending." loading="lazy">
+            </figure>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--well" id="built" aria-labelledby="built-head">
+      <div class="container split">
+        <div>
+          <div class="head">
+            <h2 id="built-head">Where the money sits</h2>
+            <p class="lead">The agent never holds a balance. One restricted key lets it ask; the contract decides.</p>
+          </div>
+          <svg class="diagram" viewBox="0 0 760 420" role="img" aria-label="Diagram: the agent’s function-call key can only call request_payment on the vault contract; the vault checks the allowlist, the per-payment and daily limits and the approval threshold, then moves funds held on NEAR Intents to the merchant, who verifies the receipt and delivers; the owner approves larger payments in a wallet">
+            <g class="diagram__box">
+              <rect x="2" y="40" width="160" height="88" rx="8"/>
+              <text x="20" y="74">Agent</text>
+              <text x="20" y="100" class="diagram__small">one function-call key</text>
+            </g>
+            <g class="diagram__box diagram__box--vault">
+              <rect x="282" y="20" width="200" height="200" rx="8"/>
+              <text x="302" y="54">Vault contract</text>
+              <text x="302" y="88" class="diagram__small">allowlisted merchants</text>
+              <text x="302" y="112" class="diagram__small">per-payment limit</text>
+              <text x="302" y="136" class="diagram__small">daily limit, reserved first</text>
+              <text x="302" y="160" class="diagram__small">approval above a threshold</text>
+              <text x="302" y="196" class="diagram__small">no access keys</text>
+            </g>
+            <g class="diagram__box">
+              <rect x="598" y="40" width="160" height="88" rx="8"/>
+              <text x="616" y="74">NEAR Intents</text>
+              <text x="616" y="100" class="diagram__small">holds the wNEAR</text>
+            </g>
+            <g class="diagram__box">
+              <rect x="598" y="260" width="160" height="88" rx="8"/>
+              <text x="616" y="294">Merchant</text>
+              <text x="616" y="320" class="diagram__small">verifies, then delivers</text>
+            </g>
+            <g class="diagram__box">
+              <rect x="2" y="260" width="160" height="88" rx="8"/>
+              <text x="20" y="294">Owner</text>
+              <text x="20" y="320" class="diagram__small">approves in a wallet</text>
+            </g>
+            <g class="diagram__line">
+              <path d="M162 84h120"/>
+              <text x="222" y="70" class="diagram__label">request_payment</text>
+              <path d="M482 84h116"/>
+              <text x="540" y="70" class="diagram__label">mt_transfer</text>
+              <path d="M678 128v132"/>
+              <text x="690" y="200" class="diagram__label diagram__label--left">receipt</text>
+              <path d="M82 260v-40h200"/>
+              <text x="182" y="206" class="diagram__label">approve(op)</text>
+            </g>
+          </svg>
+        </div>
+        <div class="needs">
+          <h3>What a deployment needs</h3>
+          <ul class="rows">
+            <li><span>Toolchain</span><span>Rust 1.93+ (wasm32 target), cargo-near 0.22, Node 22.13+, pnpm 11, Python 3</span></li>
+            <li><span>Owner</span><span>a NEAR account; a wallet that shows full call arguments</span></li>
+            <li><span>Funds</span><span>one token balance on NEAR Intents</span></li>
+            <li><span>Agent</span><span>a function-call key limited to request_payment</span></li>
+            <li><span>Testnet</span><span>about 18.5 NEAR; it deploys its own copy of Intents</span></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="limits" aria-labelledby="limits-head">
+      <div class="container">
+        <div class="head head--split">
+          <h2 id="limits-head">What it does not protect</h2>
+        </div>
+        <ul class="rows rows--wide">
+          <li><span>The owner’s key</span><span>Stolen, it changes the policy and withdraws.</span></li>
+          <li><span>Delivery</span><span>A merchant can take payment and not deliver. The limits cap the loss.</span></li>
+          <li><span>Intents admins</span><span>Can pause, lock, force-transfer the vault’s balance and upgrade Intents.</span></li>
+          <li><span>A lost callback</span><span>Keeps its slot and day’s reservation until the owner resolves it after ten minutes.</span></li>
+          <li><span>Midnight UTC</span><span>The cap resets; up to twice it can move across the boundary. Accepted.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section section--well" id="dated" aria-labelledby="dated-head">
+      <div class="container">
+        <div class="head">
+          <h2 id="dated-head">Built in the open, dated</h2>
+          <p class="lead">Pre-window work is listed as such; its eligibility is not yet confirmed.</p>
+        </div>
+        <table class="timeline">
+          <thead><tr><th scope="col">When</th><th scope="col">What</th><th scope="col">Check</th></tr></thead>
+          <tbody>
+            <tr><td><time datetime="2026-10-21">21 Oct 2026</time></td><td>Contract, tests, attack suite, merchant, agent, owner app, demo, testnet bootstrap</td><td>git history</td></tr>
+            <tr><td><time datetime="2026-10-22">22 Oct 2026</time></td><td>Owner app layout with numbered steps, evidence rerun, submission kit</td><td class="path">evidence/local-run.md</td></tr>
+            <tr><td><time datetime="2026-10-25">25 Oct 2026</time></td><td>Claims matched to tests, product thesis</td><td class="path">docs/threat-model.md</td></tr>
+            <tr><td>1 to 14 Nov 2026</td><td>Planned: testnet with a real wallet, real-model run, video</td><td>README, status</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section" id="run" aria-labelledby="run-head">
+      <div class="container run">
+        <div class="run__text">
+          <div class="head">
+            <h2 id="run-head">Run it in three commands</h2>
+            <p class="lead">A local chain, the merchant, the agent, the owner app. <a href="https://github.com/hadelive/payrein#try-it-judges-start-here">Prerequisites in the README.</a></p>
+          </div>
+          <pre class="code"><code>pnpm install
+make test-security
+make demo-local</code></pre>
+          <p class="run__links"><a class="btn btn--card" href="https://github.com/hadelive/payrein">Open the repository</a> <a class="textlink" href="https://github.com/hadelive/payrein/blob/main/docs/threat-model.md">Read the threat model</a></p>
+        </div>
+        <figure class="shot shot--wide stock" data-slot="run" data-kind="product" data-alt="The vault summary with the day’s budget bar">
+          <img src="images/screens/vault-panel.png" width="2496" height="496" alt="The vault summary: balance 9.998 wNEAR on Intents, per payment 0.01 with approval above 0.005, daily limit 0.03 paying only Report Shop, status active, and today’s bar at 0.002 spent." loading="lazy">
+        </figure>
+      </div>
+    </section>
+  </main>
+
+  <footer class="colophon">
+    <div class="container">
+      <p>Payrein is hadelive’s entry in NEAR HACKATHON 2026, extending a prototype started on 21 October and disclosed in the repository. Unaudited. Set in General Sans and Geist Mono. <a href="https://github.com/hadelive/payrein">Source on GitHub</a>. <a href="https://github.com/hadelive/payrein/blob/main/docs/submission.md">Submission notes</a>.</p>
+    </div>
+  </footer>
+
+  <script>
+    (() => {
+      const tick = document.querySelector('[data-tick]');
+      if (tick && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        const end = Number(tick.dataset.tick); const t0 = performance.now();
+        const step = (t) => { const k = Math.min(1, (t - t0) / 420); tick.textContent = String(Math.round(end * (1 - Math.pow(1 - k, 3)))); if (k < 1) requestAnimationFrame(step); };
+        requestAnimationFrame(step);
+      }
+      document.querySelectorAll('[data-switch]').forEach((sw) => {
+        const tabs = [...sw.querySelectorAll('[role="tab"]')];
+        const show = (i) => tabs.forEach((t, j) => { const on = i === j; t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1; document.getElementById(t.getAttribute('aria-controls')).hidden = !on; });
+        tabs.forEach((t, i) => {
+          t.addEventListener('click', () => show(i));
+          t.addEventListener('keydown', (e) => { const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0; if (!d) return; e.preventDefault(); const n = (i + d + tabs.length) % tabs.length; show(n); tabs[n].focus(); });
+        });
+      });
+    })();
+  </script>
+  <script>window.hallmarkSlots = (m) => { for (const [k, v] of Object.entries(m)) { const s = document.querySelector(`[data-slot="${k}"]`); if (!s) continue; const im = new Image(); im.src = typeof v === 'string' ? v : v.src; im.alt = (typeof v === 'object' && v.alt) || s.dataset.alt || ''; s.querySelectorAll(':scope > img').forEach((o) => o.remove()); s.prepend(im); } };
+document.querySelectorAll('[data-slot] img').forEach((i) => { if (i.complete && !i.naturalWidth) i.remove(); else i.addEventListener('error', () => i.remove(), { once: true }); });</script>
+</body>
+</html>

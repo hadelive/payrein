@@ -105,7 +105,7 @@ export function App() {
     <div className="page">
       <header className="top">
         <div>
-          <h1>Agent Payment Vault <span className={`badge ${cfg.network}`}>{cfg.network}</span></h1>
+          <h1>Payrein <span className={`badge ${cfg.network}`}>{cfg.network}</span></h1>
           <p className="sub">Compromise the agent. The spending limits still hold.</p>
         </div>
         <div className="who">

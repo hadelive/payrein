@@ -1,0 +1,41 @@
+[
+ {
+  "shape": "Stat-Led",
+  "theme": "coral",
+  "axes": "light/grotesk-sans/warm",
+  "hero": "Stage",
+  "nav": "banner over a retracting bar",
+  "footer": "colophon block",
+  "imagery": "screenshots 7 (owner app, light palette, after a real demo run)",
+  "photos": [],
+  "entry": "site/index.html",
+  "fingerprint": {
+   "heading": "left-aligned beside built stationery in the hero",
+   "body": "stage hero, split and switcher below",
+   "divider": "hairlines and one tinted well",
+   "button": "letterpress cards, one ink primary",
+   "image": "product captures on cotton stock",
+   "reveal": "number tick on the hero figure only"
+  },
+  "sections": [
+   "Hero (figure 25 and the line)",
+   "Showcase (the owner app capture)",
+   "Figures (four real numbers)",
+   "Switcher (four attacks)",
+   "Split (diagram and the needs rows)",
+   "Rows (what it does not protect)",
+   "Table (dated timeline)",
+   "Split (commands beside the last screen)",
+   "Footer (colophon)"
+  ],
+  "signature": "the outcome ledger: Settled pressed in coral, Refused as an ink outline, from the real run",
+  "waived": [
+   "47b"
+  ],
+  "prompt": "Payrein landing page: a payment vault contract on NEAR for AI agents, NEAR HACKATHON entry",
+  "draw": "a2fe20",
+  "deal": "2/3, seed payrein-payment-vault-contract-bbe2\u00b7e39c3518\u00b72026-10-25\u00b7r0",
+  "date": "2026-10-25",
+  "mode": "build"
+ }
+]

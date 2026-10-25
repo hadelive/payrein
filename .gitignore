@@ -4,3 +4,6 @@ node_modules/
 *.sqlite
 .env.local
 dist/
+
+# Hallmark render screenshots
+site/.hallmark/
