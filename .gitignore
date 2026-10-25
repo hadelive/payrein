@@ -7,3 +7,4 @@ dist/
 
 # Hallmark render screenshots
 site/.hallmark/
+site/.vercel/
