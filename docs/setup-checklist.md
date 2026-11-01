@@ -253,26 +253,24 @@ section). The draft post, the repository link reply and the 2:55 video script ar
 **Verify:** open the post's URL in a private browser window with no X login. The text and the video
 must load. Paste that URL into the form.
 
-## 7. The eligibility question
+## 7. Eligibility, and the form's traps
 
-The rules say "Build your project during the hackathon" and nothing about earlier work. Our
-contract, tests and demo started on 21 October, which the README and the landing page disclose.
-The site lists no organiser email, only the NEAR Discord (https://discord.gg/nearprotocol) and
-https://x.com/NEARProtocol, so send this on Discord (or by email if the organisers publish one):
+No message to the organisers is needed. Their FAQ (https://nearhackathon.com/HACKATHON.md, Q-001,
+read on 1 November 2026) says code written since the announcement on 19 October 2026 counts and
+earlier commits are baseline. This repository started on 21 October, so all of it is inside the
+counted period; the README's "Eligibility" line says so.
 
-> Hello, a question about eligibility for NEAR HACKATHON before we submit.
->
-> We started our project, Payrein (an agent payment vault on NEAR Intents: a contract that holds an
-> agent's spending money and enforces allowlists, limits and owner approval), on 21 October, before
-> the 1 November window. The contract, its tests and a local demo exist today; the repository's
-> history and README state this. During the window we plan the testnet deployment with a real
-> wallet, a real-model run, a mainnet pilot and the demo video, all with dated commits.
->
-> Does an existing implementation extended during the window qualify, in whole or only for the
-> November work? We would rather ask than assume. Thank you.
+Three rules from the same file to carry into the form:
 
-**Verify:** record the date you asked and the answer, verbatim, in the README's "Eligibility" line
-under "Status and timeline", and keep the message link.
+- The submission cannot be edited and each repository can be sent once. Send it last, after the
+  repository is public and the post is up.
+- The form's "Website" field is a spam trap: "any non-empty value rejects the submission". Leave it
+  empty and put the landing page's URL in the description text instead.
+- Screenshots alone are not enough when judges cannot open the demo (Q-012), so attach a video. A
+  hosted demo is a plus; keep it up to 18 November, ideally 25 November.
+
+**Verify:** re-read https://nearhackathon.com/HACKATHON.md on submission day; it says dates and
+rules may change.
 
 ## Before the recorded take
 

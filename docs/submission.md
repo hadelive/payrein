@@ -8,33 +8,43 @@ per team and cannot be edited afterwards, so the owner sends it, not a script.
 - **Tracks:** AI Security & Defense (primary), Agent Economy.
 - **Repository:** the public GitHub URL (fill in).
 - **Demo post:** the X post URL (fill in).
-- **Website:** optional; leave empty unless the app is hosted.
+- **Website:** leave empty. The rules file calls this field a spam trap and rejects any value in
+  it; the landing page (https://payrein.vercel.app) goes in the description instead.
 - **Prize account:** the owner's mainnet account (fill in).
 
 ## "What did you build?" (form, 20–2,000 characters)
 
-Submission-day text: it claims only what the repository holds by then. Before sending, replace the
-bracketed part with what was actually completed in November.
+Submission-day text, true as of 1 November 2026 (update if the testnet run lands before sending):
 
-> Agent Payment Vault lets an AI agent buy reports using a NEAR Intents balance held by a Rust
-> contract. A restricted function-call key can request payments, but the contract enforces merchant
-> allowlists, per-payment and daily caps, and owner approval of exact payment details. The demo
-> covers injected instructions, a leaked key, tampered approval and concurrent spending. The repo
-> records 25 sandbox attack tests against the live intents.near binary, a mutation check, [the
-> testnet and mainnet deployments with their transactions, the wallet check and a real-model run],
-> and discloses the pre-event prototype and the work completed during the hackathon.
+> Payrein lets an AI agent buy things from a NEAR Intents balance that a small Rust contract holds, not the agent. The agent has one function-call key that can only ask the vault to pay. The vault pays only allowlisted merchants, in one token, within a per-payment and a daily limit, and anything above an approval threshold waits until the owner approves that exact payment in their wallet. A hijacked prompt, a replaced agent binary or a leaked key changes none of that, because the checks run in the contract that moves the funds.
 
-(About 620 characters.)
+What is in the repository: the contract (near-sdk), 27 unit tests, 25 sandbox attack tests that run against the pinned intents.near binary that is live on mainnet (injected instructions, leaked key, tampered approval, replayed and expired payments, eight concurrent requests, stuck callbacks), a mutation check in which five targeted mutations are each caught by their covering test, a demo merchant that delivers only after verifying the payment on chain, an agent runner with a scripted or a NEAR AI Cloud model, an owner app that shows the exact call the wallet will sign, a one-command local demo, and a testnet bootstrap. The demo video shows the seven demo steps on the local devnet. Landing page: https://payrein.vercel.app. The README's threat model says what the contract does not protect: the owner key and Intents are trusted, a swapped but genuinely awaiting payment is caught only by reading the wallet, and the contract is unaudited. Work started on 21 October 2026, after the 19 October announcement; the git history is dated.
 
-## X post (under 280 characters, must say it was built at NEAR HACKATHON)
+(1574 characters.)
 
-> Built at NEAR HACKATHON: Agent Payment Vault, extending a disclosed pre-event prototype. An agent
-> buys reports with a NEAR Intents balance; the contract enforces merchant rules, spending caps and
-> exact-payment approval—even if its key leaks. Demo ↓
+## X post (under 280 characters; must say built at NEAR HACKATHON, tag @NEARProtocol and #NEARHackathon)
 
-(248 characters; attach the video. Put the repo link in a reply.)
+> Built at NEAR HACKATHON: Payrein, a NEAR contract that holds an AI agent’s spending money. The agent can only ask to pay; the vault enforces the allowlist, spending caps and owner approval of the exact payment, even with a leaked key. Demo ↓ @NEARProtocol #NEARHackathon
 
-## Demo video, 2–3 minutes (target 2:55)
+(270 characters; attach the video file directly. Reply with the repository link
+https://github.com/hadelive/payrein and the landing page https://payrein.vercel.app.)
+
+## Demo video
+
+**Recorded 1 November 2026 from the local devnet run** by `scripts/record-demo.mjs` (headless
+Chrome drives the seven demo buttons, captions each step on screen, records with CDP screencast;
+`ffmpeg` assembles the frames): 55 seconds, 1920×1500, no sound. Stills of the approval card, the
+tampered approval and the full daily bar are in `evidence/video-04-approval.png`,
+`evidence/video-05-tampered.png` and `evidence/video-08-limit.png`. On devnet the owner's sandbox
+key signs, so there is no wallet window; the wallet's display of `approve`'s arguments (T20) is not
+in this take. Run it again with `node scripts/record-demo.mjs` while `make demo-local` is up on a
+fresh sandbox (it needs `puppeteer-core` on the Node path and `ffmpeg`; the script prints the
+`ffmpeg` command).
+
+The testnet take below, with a real wallet, replaces it when the testnet setup in
+[setup-checklist.md](setup-checklist.md) is done.
+
+### Testnet take, 2–3 minutes (target 2:55)
 
 Record on **testnet** with a real wallet: the wallet's approval screen is the one thing the local
 devnet cannot show, and it is the T20 check. Say once that the testnet Intents is our copy of the

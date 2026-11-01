@@ -1,4 +1,4 @@
-# Agent Payment Vault
+# Payrein
 
 **Compromise the agent. The spending limits still hold.**
 
@@ -106,6 +106,7 @@ Full threat model: [docs/threat-model.md](docs/threat-model.md).
 | Merchant only delivers for a final, successful Intents receipt, once, to the buyer holding the delivery token (T24) | `demo/merchant/test` |
 | 64-bit values exact from the vault's view to the bytes of the owner's `approve` (T25); explanation template (T21) | `app/agent/test`, `app/web/test` |
 | Gas, storage and test output from the last full run | [evidence/](evidence/) |
+| Demo video of the seven steps above, recorded on the local devnet on 1 November 2026 with `scripts/record-demo.mjs` (55 s, captions on screen); stills of the approval card, the tampered approval and the full daily bar | `evidence/video-*.png`, the video on the X post |
 
 Test names start with the threat id they cover in the threat model; the mapping is in
 [docs/acceptance.md](docs/acceptance.md).
@@ -160,11 +161,17 @@ its unit tests, the sandbox attack suite against the pinned mainnet Intents bina
 check, the agent runner, the demo merchant, the owner app, the one-command local demo, and the
 testnet bootstrap. Everything in this README's evidence table runs and passes locally.
 
+**Done in the window so far (1 November 2026):** the demo video, recorded from the local devnet run
+by `scripts/record-demo.mjs` (stills in `evidence/`); the setup checklist for the testnet run; the
+claims in the docs and the landing page matched to the evidence; this repository made public.
+
 **Planned during the window (1–14 November 2026):** the testnet deployment and its evidence, the
 wallet check of `approve`'s arguments with a screenshot (T20), a run with a real model on NEAR AI
-Cloud, the mainnet pilot with tiny amounts, the demo video, and whatever those turn up. Items move
-to the list above only with dated evidence and commits.
+Cloud, the mainnet pilot with tiny amounts, and whatever those turn up. Items move to the list
+above only with dated evidence and commits.
 
-**Eligibility:** the rules say "Build your project during the hackathon" and nothing about earlier
-work. We have not yet asked the organisers whether an existing implementation extended during
-November qualifies; this line will record their answer.
+**Eligibility:** the organisers' FAQ (https://nearhackathon.com/HACKATHON.md, Q-001, read on
+1 November 2026) says code written since the announcement on 19 October 2026 counts and earlier
+commits are baseline. This repository's first commit is from 21 October 2026, so all of it falls
+inside the counted period; the git history and the dates above show what was built before the
+1 November development phase and what during it.
