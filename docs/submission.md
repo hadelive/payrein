@@ -10,7 +10,7 @@ per team and cannot be edited afterwards, so the owner sends it, not a script.
 - **Demo post:** https://x.com/CrissEthan7au/status/2117162030889390370 (posted 2 November 2026 with the video; the reply holds the repository and landing page links).
 - **Website:** leave empty. The rules file calls this field a spam trap and rejects any value in
   it; the landing page (https://payrein.vercel.app) goes in the description instead.
-- **Prize account:** the owner's mainnet account (fill in).
+- **Prize account:** `hadelive.near` (exists on mainnet, checked 2 November 2026).
 
 ## "What did you build?" (form, 20–2,000 characters)
 
