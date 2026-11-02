@@ -16,7 +16,7 @@ per team and cannot be edited afterwards, so the owner sends it, not a script.
 
 ## "What did you build?" (form, 20–2,000 characters)
 
-Submission-day text, true as of 1 November 2026 (update if the testnet run lands before sending):
+The description as sent on 2 November 2026, kept verbatim as the record:
 
 > Payrein lets an AI agent buy things from a NEAR Intents balance that a small Rust contract holds, not the agent. The agent has one function-call key that can only ask the vault to pay. The vault pays only allowlisted merchants, in one token, within a per-payment and a daily limit, and anything above an approval threshold waits until the owner approves that exact payment in their wallet. A hijacked prompt, a replaced agent binary or a leaked key changes none of that, because the checks run in the contract that moves the funds.
 

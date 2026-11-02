@@ -105,6 +105,16 @@ describe("InvoiceStore.consume", () => {
     expect(fresh().consume("INV-none", "tok-1", "r1", "tx1")).toBe("unknown_invoice");
   });
 
+  it("lets the paying buyer collect the goods again, with the same token and payment only", () => {
+    const s = fresh();
+    expect(s.redeliver(invoice.invoiceRef, "tok-1", "tx1")).toBe("not_paid");
+    expect(s.consume(invoice.invoiceRef, "tok-1", "r1", "tx1")).toBe("ok");
+    expect(s.redeliver(invoice.invoiceRef, "tok-1", "tx1")).toBe("ok");
+    expect(s.redeliver(invoice.invoiceRef, "tok-1", "tx-other")).toBe("different_payment");
+    expect(s.redeliver(invoice.invoiceRef, "guessed", "tx1")).toBe("wrong_delivery_token");
+    expect(s.redeliver("INV-none", "tok-1", "tx1")).toBe("unknown_invoice");
+  });
+
   it("refuses an observer who saw the payment but has no delivery token", () => {
     const s = fresh();
     expect(s.consume(invoice.invoiceRef, "guessed", "r1", "tx1")).toBe("wrong_delivery_token");

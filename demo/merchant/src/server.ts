@@ -102,7 +102,12 @@ app.post("/deliver", async (c) => {
   }
   const invoice = store.get(invoice_ref);
   if (!invoice) return c.json({ error: "unknown invoice" }, 404);
-  if (invoice.paid) return c.json({ error: "invoice already paid" }, 409);
+  if (invoice.paid) {
+    // The buyer who paid may fetch the goods again (a lost response); anyone else is refused.
+    const again = store.redeliver(invoice_ref, delivery_token, tx_hash);
+    if (again !== "ok") return c.json({ error: `invoice already paid (${again})` }, 409);
+    return c.json({ invoice_ref, report: REPORTS[invoice.sku], repeated: true });
+  }
 
   let tx: TxResult;
   try {

@@ -5,6 +5,12 @@
 //! under it and writes target/testnet.json (account ids, the agent's restricted keys, the path of the
 //! owner's key file; never the owner's key itself).
 //!
+//! Keys: every sub-account is created with a fresh random key (never near-workspaces' default,
+//! which derives from the public seed string "subaccount.seed"), and that key is deleted once the
+//! bootstrap is done. Afterwards `vault.`, `intents.`, `shop.` and `attacker.` have no access key at
+//! all, `agent.` has only its restricted `request_payment` keys, and `<root>` holds Intents' admin
+//! roles. The program checks that inventory on chain before it writes the file.
+//!
 //! Run with `TESTNET_ACCOUNT=<root>.testnet make testnet` after `make build`. The key file defaults
 //! to ~/.near-credentials/testnet/<root>.json (near-cli's legacy keychain); `TESTNET_KEY_FILE`
 //! overrides it.
@@ -95,7 +101,13 @@ async fn main() -> Result<()> {
     let create = |name: &'static str, near: u128| {
         let root = root.clone();
         async move {
-            let acct = root.create_subaccount(name).initial_balance(milli(near)).transact().await?.into_result()?;
+            let acct = root
+                .create_subaccount(name)
+                .initial_balance(milli(near))
+                .keys(SecretKey::from_random(KeyType::ED25519))
+                .transact()
+                .await?
+                .into_result()?;
             println!("created {}", acct.id());
             anyhow::Ok(acct)
         }
@@ -186,9 +198,36 @@ async fn main() -> Result<()> {
         agent_keys.push(sk.to_string());
     }
 
-    // The vault must have no access key, and its Intents balance must be what was sent.
-    let keys = worker.view_access_keys(&vault).await?;
-    ensure!(keys.is_empty(), "{vault} has {} access keys", keys.len());
+    // 6. The bootstrap keys go: `intents.`, `shop.` and `attacker.` end with no key (Intents' admin
+    //    roles are `<root>`'s), `agent.` keeps only its restricted keys. Each deletion is signed by the
+    //    key it removes, which the protocol allows.
+    for acct in [intents.as_account(), &shop, &attacker, &agent] {
+        acct.batch(acct.id()).delete_key(acct.secret_key().public_key()).transact().await?.into_result()?;
+    }
+
+    // Key inventory, checked on chain: no full-access key anywhere under `<root>`, and the agent's
+    // keys are exactly the restricted ones. T18, T19 and T23 on testnet.
+    for id in [&vault, intents.id(), shop.id(), attacker.id()] {
+        let keys = worker.view_access_keys(id).await?;
+        ensure!(keys.is_empty(), "{id} has {} access keys", keys.len());
+    }
+    let keys = worker.view_access_keys(agent.id()).await?;
+    ensure!(keys.len() == AGENT_KEYS, "{} has {} keys, expected {AGENT_KEYS}", agent.id(), keys.len());
+    for k in &keys {
+        match &k.access_key.permission {
+            AccessKeyPermission::FunctionCall(fc) => ensure!(
+                fc.receiver_id == vault.as_str() && fc.method_names == ["request_payment"],
+                "{} has a key for {}::{:?}",
+                agent.id(),
+                fc.receiver_id,
+                fc.method_names
+            ),
+            AccessKeyPermission::FullAccess => bail!("{} still has a full-access key", agent.id()),
+        }
+    }
+    println!("keys: vault/intents/shop/attacker none; agent {AGENT_KEYS} function-call keys for {vault}::request_payment");
+
+    // The vault's Intents balance must be what was sent.
     let bal: String = worker
         .view(intents.id(), "mt_balance_of")
         .args_json(json!({ "account_id": vault, "token_id": token }))
@@ -208,6 +247,10 @@ async fn main() -> Result<()> {
         "agent_keys": agent_keys,
         "merchant_id": shop.id(),
         "attacker_id": attacker.id(),
+        "keys": {
+            "vault": [], "intents": [], "shop": [], "attacker": [],
+            "agent": format!("{AGENT_KEYS} function-call keys, receiver {vault}, method request_payment"),
+        },
     });
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/testnet.json");
     // Holds the agent's keys: owner-readable only.

@@ -84,6 +84,22 @@ export class InvoiceStore {
     }
   }
 
+  /**
+   * Whether the holder of the delivery token may collect a paid invoice's goods again: only with the
+   * same token and the same payment transaction, so a lost delivery response is recoverable while
+   * an observer of the payment still gets nothing.
+   */
+  redeliver(invoiceRef: string, deliveryToken: string, txHash: string): "ok" | "unknown_invoice" | "wrong_delivery_token" | "not_paid" | "different_payment" {
+    const row = this.db
+      .prepare("SELECT paid_receipt, paid_tx, delivery_token_hash FROM invoices WHERE invoice_ref = ?")
+      .get(invoiceRef) as { paid_receipt: string | null; paid_tx: string | null; delivery_token_hash: Uint8Array } | undefined;
+    if (!row) return "unknown_invoice";
+    if (!timingSafeEqual(sha256(deliveryToken), Buffer.from(row.delivery_token_hash))) return "wrong_delivery_token";
+    if (row.paid_receipt === null) return "not_paid";
+    if (row.paid_tx !== txHash) return "different_payment";
+    return "ok";
+  }
+
   private rollback(result: ConsumeResult): ConsumeResult {
     this.db.exec("ROLLBACK");
     return result;

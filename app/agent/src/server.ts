@@ -71,6 +71,7 @@ app.get("/events", (c) =>
 // Long-running actions return at once; progress arrives on /events.
 app.post("/buy", async (c) => {
   const { task, compromised } = await c.req.json<{ task?: string; compromised?: boolean }>();
+  if (compromised === true && !attacksEnabled) return c.json({ error: "demo attacks are off (DEMO_ATTACKS=1 enables them)" }, 403);
   void agent.buy(task ?? "Buy this week's NEAR ecosystem report", compromised === true);
   return c.json({ started: true }, 202);
 });

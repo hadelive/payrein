@@ -35,7 +35,7 @@ approve:  vault op AwaitingApproval -> app shows explanation -> owner wallet sig
           -> same dispatch path
 
 deploy:   owner wallet -> one tx to vault.<owner>: CreateAccount, Transfer, DeployContract, new(...)
-          app checks code hash, get_config, empty key list
+          bootstrap checks the empty key list and the Intents balance (the app does not)
 fund:     owner wallet -> wrap.near.ft_transfer_call(intents.near, amount, msg = vault)
 ```
 
@@ -48,9 +48,9 @@ one SQLite transaction) are in the spec's Merchant side section.
 One page, four panels, plus a demo strip that only the demo build shows.
 
 1. **Vault** (top): vault account, Intents balance, budget bar for today (spent, pending, left,
-   limit), policy values with version, allowlist with labels. Owner actions open modals: edit
-   policy, add or remove merchant, pause, withdraw. Each modal shows the exact call before the
-   wallet opens.
+   limit), policy values with version, allowlist with labels. Owner actions as built: pause and
+   unpause. The policy, merchant and withdraw modals were in the plan and were cut (see
+   acceptance.md, scope order); those methods are reachable from a wallet or near-cli.
 2. **Approvals**: one card per `AwaitingApproval` op: the template explanation (bold amount,
    merchant label and account, invoice, budget after, expiry countdown), the LLM summary in a
    separate box labelled "Agent's note (not checked)", and Approve / Reject. Approve sends
@@ -62,10 +62,10 @@ One page, four panels, plus a demo strip that only the demo build shows.
    lists the agent runner's own log of failed calls, marked "from the agent's log".
 4. **Agent**: the runner's step log streamed over SSE: what it was asked, the offers, the
    merchant's raw response (injected text highlighted), the op it built, the vault's answer.
-5. **Demo strip** (demo build only): buttons for the three scripted attacks, each running a
-   script with its own signer: injected merchant (T1), direct call with the leaked key (T2),
-   8 parallel requests from 8 keys (T5), and a tampered approval with a changed amount (T9, T20).
-   The owner app never holds a key; the agent scripts run in the agent runner process.
+5. **Demo strip** (demo build only): seven numbered buttons in the README's order: buy, injected
+   merchant (T1), direct call with the leaked key (T2), buy needing approval, tampered approval
+   (T9, T20), approve, 8 parallel requests from 8 keys (T5). The attack scripts run in the agent
+   runner process with the agent's keys; the owner app holds no key outside the devnet build.
 
 States every panel handles: loading, empty, RPC error (keeps last data, shows "stale since
 HH:MM:SS"), wallet not connected (read-only views still shown).

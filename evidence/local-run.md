@@ -35,7 +35,7 @@ callback, and a finished op has already left the active list.
 
 | Item | Value | Source |
 |---|---|---|
-| Gas burnt with state at its bounds (32 merchants, full recent ring, awaiting ops to scan, 64-byte invoice): `request_payment` | 2.82 Tgas | `t17d_gas_table` |
+| Gas burnt with state at its bounds (32 merchants, full recent ring, awaiting ops to scan, 64-byte invoice), one successful transfer; failure and maximum-active paths not measured: `request_payment` | 2.82 Tgas | `t17d_gas_table` |
 | Same: `mt_transfer` on `intents.near` | 3.73 Tgas; receipt carries exactly 15 Tgas | `t17d_gas_table` |
 | Same: `on_settled` callback | 2.00 Tgas; receipt carries exactly 10 Tgas | `t17d_gas_table` |
 | Vault storage after 15 and after 30 soak cycles (4 expiring requests and 1 failed transfer each) | 219,277 bytes both times | `t15b_storage_soak` |
@@ -70,6 +70,12 @@ Pause and Unpause from the app. The agent runner refused requests without its to
 Rerun on 22 Oct after the owner app's layout change (summary first, seven numbered demo steps,
 explicit network): all 11 checks passed again. The app after that run:
 [owner-app-after-demo.png](owner-app-after-demo.png) (headless Chrome, 1280 px wide).
+
+## Live check (2 Nov 2026)
+
+`make check-live` at mainnet block 222693527: `intents.near` code hash
+`BtA1BEFNS619KkvXFsgcpQ21Tb5yMm32aaUkn7xNothk` and `wrap.near` code hash
+`DL2f5xmZ44cQRP6vBMt94rvseH5d5KKnAGis2WkTAsh1`, both equal to the pinned fixtures.
 
 ## Not yet done
 

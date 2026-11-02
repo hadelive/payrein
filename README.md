@@ -36,7 +36,7 @@ With `make demo-local` running, open the app and click the demo buttons in this 
 | **Buy (needs approval)** | 0.008 is above the 0.005 threshold. Approvals shows the payment in plain words, the budget after it, why it needs approval, the exact call the wallet will show, and the agent's own note in a box marked *not checked*. |
 | **T9 tampered approval** | A tampered app asks to approve 0.009 instead of 0.008: *The approval did not match the stored payment in every field. (ApprovalMismatch)* The contract catches any changed field. It cannot catch an app that swaps in a different, complete awaiting payment; only the wallet's display of `approve`'s full arguments does (T20), which is why the owner reads the wallet, not the app. |
 | **Approve** | The vault pays 0.008; the merchant checks the owner's transaction on chain and delivers. Spent 0.010. |
-| **T5 8 at once** | 8 requests of 0.004 from 8 keys in the same moment, 0.020 left: exactly 5 settle, 3 `refused: OverDaily`. The bar stops at the 0.030 limit. |
+| **T5 8 at once** | 8 requests of 0.004 from 8 keys in the same moment, 0.020 left: exactly 5 settle, 3 `refused: OverDaily`. The bar stops at the 0.030 limit. Run instead while step 4's payment is still waiting (as the landing page's capture was), the pending queue of 8 has one slot taken, so 7 settle and 1 is `refused: TooManyPending`: a different limit, same contract. |
 
 The same script without a browser: `pnpm --filter @vault/agent e2e devnet` while `make demo-local`
 runs; it checks every step above and the balances.
@@ -91,6 +91,12 @@ All in [`contracts/policy-vault/src/lib.rs`](contracts/policy-vault/src/lib.rs):
 - It trusts `intents.near`, whose admins can pause transfers, lock accounts, force-transfer balances
   and upgrade the contract. The live binary matches no published release.
 - Approval only protects the owner if their wallet shows the call's full arguments.
+- The agent runner keeps a purchase that awaits approval only in memory. If the runner restarts
+  before the owner approves, the payment still settles but the runner no longer holds the invoice's
+  delivery token, so that report is not collected. The merchant re-serves a paid invoice to the
+  token's holder, so a runner that persisted its tokens would recover; the demo runner does not.
+- The demo's "compromised" mode forces the agent to obey injected text. It demonstrates what the
+  contract does when an agent is hijacked; it is not a measurement of how often a model is.
 - It is not a fix for, and makes no claim about, the October 2026 Intents incident.
 - **The contract is unaudited.** Keep amounts tiny.
 
@@ -106,6 +112,8 @@ Full threat model: [docs/threat-model.md](docs/threat-model.md).
 | Merchant only delivers for a final, successful Intents receipt, once, to the buyer holding the delivery token (T24) | `demo/merchant/test` |
 | 64-bit values exact from the vault's view to the bytes of the owner's `approve` (T25); explanation template (T21) | `app/agent/test`, `app/web/test` |
 | Gas, storage and test output from the last full run | [evidence/](evidence/) |
+| The pinned `intents.near` and `wrap.near` binaries equal the live mainnet code: checked 2 November 2026 at block 222693527 | `make check-live`, [evidence/local-run.md](evidence/local-run.md) |
+| Security review of 2 November 2026 by Codex gpt-6-astra (an AI review, not an audit): findings, their verification and the fixing commits | [docs/review-2026-11-02.md](docs/review-2026-11-02.md) |
 | Demo video of the seven steps above, recorded on the local devnet on 1 November 2026 with `scripts/record-demo.mjs` (55 s, captions on screen); stills of the approval card, the tampered approval and the full daily bar | `evidence/video-*.png`, the video on the X post |
 
 Test names start with the threat id they cover in the threat model; the mapping is in
@@ -156,14 +164,19 @@ In priority order, each a small step from what exists; milestones, not dates:
 
 Stated so judges can check it against the git history.
 
-**Done before the hackathon window (21–22 October 2026):** the design documents, the contract and
+**Done before the development phase (21–25 October 2026):** the design documents, the contract and
 its unit tests, the sandbox attack suite against the pinned mainnet Intents binary, the mutation
-check, the agent runner, the demo merchant, the owner app, the one-command local demo, and the
-testnet bootstrap. Everything in this README's evidence table runs and passes locally.
+check, the agent runner, the demo merchant, the owner app, the one-command local demo, the testnet
+bootstrap, and the setup checklist for the testnet run. Everything in this README's evidence table
+runs and passes locally.
 
-**Done in the window so far (1 November 2026):** the demo video, recorded from the local devnet run
-by `scripts/record-demo.mjs` (stills in `evidence/`); the setup checklist for the testnet run; the
-claims in the docs and the landing page matched to the evidence; this repository made public.
+**Done in the development phase so far:** 1 November, the demo video, recorded from the local
+devnet run by `scripts/record-demo.mjs` (stills in `evidence/`). 2 November, this repository made
+public and the project submitted; a security review by Codex gpt-6-astra with its findings fixed
+the same day ([docs/review-2026-11-02.md](docs/review-2026-11-02.md): the testnet bootstrap would
+have installed full-access keys derived from a public seed, the merchant could not re-serve a paid
+invoice after a lost response, two smaller app bugs); `make check-live` rerun; the claims in the
+docs matched to the code and the evidence; MIT licence and CI added.
 
 **Planned during the window (1–14 November 2026):** the testnet deployment and its evidence, the
 wallet check of `approve`'s arguments with a screenshot (T20), a run with a real model on NEAR AI

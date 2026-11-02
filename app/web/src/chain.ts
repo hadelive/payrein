@@ -136,7 +136,9 @@ export async function loadState(): Promise<VaultState> {
   ]);
   const token = config.policy.token_id;
   const ids = [...new Set([token, ...ops.map((r) => r.op.token_id)])];
-  const metas = await Promise.all(ids.map((id) => metaFor(id).catch(() => ({ symbol: id, decimals: 0 }))));
+  // A token whose metadata cannot be read is an error the app shows, not a zero-decimal stand-in
+  // (which would mis-scale every amount and crash the budget arithmetic).
+  const metas = await Promise.all(ids.map((id) => metaFor(id)));
   const tokens = Object.fromEntries(ids.map((id, i) => [id, metas[i]!]));
   const balance = await view<string>(cfg.intentsId, "mt_balance_of", { account_id: cfg.vaultId, token_id: token });
   return { config, merchants, ops, budget, balance, token: tokens[token]!, tokens, loadedAt: new Date() };
