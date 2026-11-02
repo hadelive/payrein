@@ -1,5 +1,7 @@
 # Submission kit
 
+**Submitted on 2 November 2026** through the form at https://nearhackathon.com/#apply: project Payrein, solo, tracks AI Security & Defense and Agent Economy, prize account `hadelive.near`, repository https://github.com/hadelive/payrein, demo post https://x.com/CrissEthan7au/status/2117162030889390370. The site answered "Submission received. Your project has been saved." The form cannot be edited; the repository and the post stay public through judging (16 to 18 November).
+
 Everything the NEAR HACKATHON form and the X post need, in one place. The form takes one submission
 per team and cannot be edited afterwards, so the owner sends it, not a script.
 
