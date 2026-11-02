@@ -6,8 +6,8 @@ per team and cannot be edited afterwards, so the owner sends it, not a script.
 ## Form fields
 
 - **Tracks:** AI Security & Defense (primary), Agent Economy.
-- **Repository:** the public GitHub URL (fill in).
-- **Demo post:** the X post URL (fill in).
+- **Repository:** https://github.com/hadelive/payrein (public since 2 November 2026).
+- **Demo post:** https://x.com/CrissEthan7au/status/2117162030889390370 (posted 2 November 2026 with the video; the reply holds the repository and landing page links).
 - **Website:** leave empty. The rules file calls this field a spam trap and rejects any value in
   it; the landing page (https://payrein.vercel.app) goes in the description instead.
 - **Prize account:** the owner's mainnet account (fill in).
