@@ -87,6 +87,7 @@ Fixture policy: `per_payment_max 1`, `approval_threshold 0.25`, `daily_max 3`, `
 | `t22_midnight` | unit | dispatch before 00:00 UTC, dispatch again after, then settle the first with success and with failure; request before midnight and approve after | the new day's budget is unaffected by the old op; the approved op is charged to the approval day; the documented `2 * daily_max` bound holds |
 | `t23_initialisation` | sandbox | call `new` again as the owner and as an outsider | both fail |
 | `t24_merchant_delivery` | merchant | a contract that emits an identical event; a failed receipt; the right payment with another invoice; the same delivery twice, sequential and concurrent | each rejected; one report served |
+| `t26_quote_check` (`app/agent/test/market.test.ts`) | agent | offers from two merchants; an invoice whose amount, merchant or token differs from the chosen offer | the cheapest fitting offer is chosen; a differing invoice is refused before any request to the vault; the next merchant's offer of the same sku is tried |
 | `t25_u64_round_trip` | app | `op_id` and `expires_at_ns` above 2^53 from the contract view into `approve` | the args sent equal the stored op |
 | `t21_explanation_template` | app | 1 yocto, 0.25, 0.5, 1 wNEAR; every rejection code | exact strings; decimals from `ft_metadata` |
 | `t_arith_boundaries` | unit | `u128` near max; lower `daily_max` below spent plus reserved | checked arithmetic; `remaining` is 0, not wrapped; pending ops settle under their reservation |

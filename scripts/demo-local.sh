@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs the demo's services locally: the merchant, the agent runner (scripted planner unless
+# Runs the demo's services locally: the two merchants, the agent runner (scripted planner unless
 # PLANNER=nearai) and the owner app on :5173. NETWORK=devnet (default) also starts a sandbox with
 # the pinned Intents binary; NETWORK=testnet uses target/testnet.json from `make testnet`, and the
 # owner signs in a testnet wallet. Ctrl-C stops everything.
@@ -21,7 +21,7 @@ trap cleanup EXIT INT TERM
 
 case "$NETWORK" in
   devnet)
-    rm -f target/devnet.json target/merchant-devnet.sqlite
+    rm -f target/devnet.json target/merchant-devnet.sqlite target/merchant2-devnet.sqlite
     cargo run -q -p security-tests --example devnet &
     pids+=($!)
     for _ in $(seq 1 180); do [ -f target/devnet.json ] && break; sleep 1; done
@@ -35,6 +35,8 @@ esac
 
 python3 -I scripts/demo-env.py "$NETWORK" "$PLANNER" >/dev/null
 (cd demo/merchant && exec node_modules/.bin/tsx --env-file=../../target/merchant.env src/server.ts) &
+pids+=($!)
+(cd demo/merchant && exec node_modules/.bin/tsx --env-file=../../target/merchant2.env src/server.ts) &
 pids+=($!)
 if [ "$PLANNER" = nearai ]; then
   : "${NEARAI_API_KEY:?set NEARAI_API_KEY}" "${NEARAI_MODEL:?set NEARAI_MODEL}"

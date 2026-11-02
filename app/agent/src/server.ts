@@ -33,7 +33,14 @@ const vault = new VaultClient(
   env("AGENT_ID"),
   env("AGENT_KEYS").split(",").map((k) => k.trim() as KeyPairString),
 );
-const agent = new Agent(vault, planner(), env("MERCHANT_URL"));
+const agent = new Agent(
+  vault,
+  planner(),
+  env("MERCHANT_URLS")
+    .split(",")
+    .map((u) => u.trim())
+    .filter(Boolean),
+);
 const merchantId = env("MERCHANT_ID");
 const attackerId = env("ATTACKER_ID");
 

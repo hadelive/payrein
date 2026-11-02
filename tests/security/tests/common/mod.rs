@@ -74,7 +74,7 @@ pub fn policy(token: &str) -> Value {
     })
 }
 
-async fn subaccount(parent: &Account, name: &str, near: u128) -> Result<Account> {
+pub async fn subaccount(parent: &Account, name: &str, near: u128) -> Result<Account> {
     Ok(parent
         .create_subaccount(name)
         .initial_balance(NearToken::from_near(near))

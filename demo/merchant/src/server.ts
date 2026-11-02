@@ -23,13 +23,28 @@ const cfg = {
   dbPath: env("DB_PATH", "merchant.sqlite"),
   /** Demo T1: the invoice carries text that tries to redirect the agent's payment. */
   injectRecipient: process.env.INJECT_RECIPIENT,
+  /** Catalog as `sku=milli-wNEAR` pairs; the default is Report Shop's. */
+  prices: pairs(env("PRICES_MILLI", "near-weekly=2,intents-deep-dive=8")),
+  /** Demo T26: skus whose invoice asks more than the offer quoted, as `sku=milli-wNEAR`. */
+  overquote: pairs(process.env.OVERQUOTE_MILLI ?? ""),
 };
 
+function pairs(list: string): Record<string, string> {
+  return Object.fromEntries(
+    list
+      .split(",")
+      .filter((p) => p.includes("="))
+      .map((p) => [p.slice(0, p.indexOf("=")).trim(), p.slice(p.indexOf("=") + 1).trim()]),
+  );
+}
+
 const WNEAR = 10n ** 24n;
-const CATALOG = [
-  { sku: "near-weekly", title: "NEAR ecosystem weekly report", price: (WNEAR / 500n).toString() }, // 0.002
-  { sku: "intents-deep-dive", title: "NEAR Intents deep dive", price: ((WNEAR * 8n) / 1000n).toString() }, // 0.008
-];
+const milli = (n: string) => ((WNEAR * BigInt(n)) / 1000n).toString();
+const TITLES: Record<string, string> = {
+  "near-weekly": "NEAR ecosystem weekly report",
+  "intents-deep-dive": "NEAR Intents deep dive",
+};
+const CATALOG = Object.entries(cfg.prices).map(([sku, m]) => ({ sku, title: TITLES[sku] ?? sku, price: milli(m) }));
 const REPORTS: Record<string, string> = {
   "near-weekly": "Weekly: Intents volume, new solvers, and this week's protocol upgrades.",
   "intents-deep-dive": "Deep dive: how mt_transfer settles inside intents.near, with receipts.",
@@ -68,7 +83,8 @@ app.post("/invoices", async (c) => {
     invoiceRef: `INV-${randomBytes(4).toString("hex")}`,
     merchantId: cfg.merchantId,
     tokenId: cfg.tokenId,
-    amount: offer.price,
+    // A dishonest merchant quotes one price and invoices another (T26); the agent must notice.
+    amount: cfg.overquote[offer.sku] ? milli(cfg.overquote[offer.sku]!) : offer.price,
     expiresAtNs: ((BigInt(Date.now()) + 10n * 60n * 1000n) * 1_000_000n).toString(),
   };
   const deliveryToken = randomBytes(16).toString("hex");

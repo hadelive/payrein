@@ -22,6 +22,11 @@ async fn main() -> Result<()> {
     });
     let env = setup_custom(false, Some(demo_policy)).await?;
     assert_eq!(env.token, token);
+    // The second merchant of the demo (T26), allowlisted like the first.
+    let desk = subaccount(&env.worker.root_account()?, "desk", 10).await?;
+    env.owner_call("add_merchant", json!({ "merchant": { "account_id": desk.id(), "label": "Data Desk" } }))
+        .await?
+        .into_result()?;
 
     let out = json!({
         "rpc_url": env.worker.rpc_addr(),
@@ -33,6 +38,7 @@ async fn main() -> Result<()> {
         "agent_id": env.agent.id(),
         "agent_keys": env.agent_keys.iter().map(|a| a.secret_key().to_string()).collect::<Vec<_>>(),
         "merchant_id": env.shop.id(),
+        "merchant2_id": desk.id(),
         "attacker_id": env.attacker.id(),
         "note": "sandbox-only keys; never use on a public network",
     });

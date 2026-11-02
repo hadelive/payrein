@@ -1,14 +1,14 @@
 //! Testnet bootstrap for the demo. Testnet has no live Intents contract (`intents.testnet` holds no
 //! code), so this deploys the pinned mainnet binary to `intents.<root>` and uses the live
 //! `wrap.testnet` as the token. The funded testnet account `<root>` is the vault's owner and signs
-//! approvals in a wallet; this program creates `intents.`, `agent.`, `shop.`, `attacker.` and `vault.`
+//! approvals in a wallet; this program creates `intents.`, `agent.`, `shop.`, `desk.`, `attacker.` and `vault.`
 //! under it and writes target/testnet.json (account ids, the agent's restricted keys, the path of the
 //! owner's key file; never the owner's key itself).
 //!
 //! Keys: every sub-account is created with a fresh random key (never near-workspaces' default,
 //! which derives from the public seed string "subaccount.seed"), and that key is deleted once the
 //! bootstrap is done. Afterwards `vault.`, `intents.`, `shop.` and `attacker.` have no access key at
-//! all, `agent.` has only its restricted `request_payment` keys, and `<root>` holds Intents' admin
+//! all (`desk.` too), `agent.` has only its restricted `request_payment` keys, and `<root>` holds Intents' admin
 //! roles. The program checks that inventory on chain before it writes the file.
 //!
 //! Run with `TESTNET_ACCOUNT=<root>.testnet make testnet` after `make build`. The key file defaults
@@ -37,7 +37,7 @@ const BYSTANDER_NEAR: u128 = 100;
 /// The owner's wNEAR: 0.1 funds the vault, the rest stays with the owner.
 const WRAP_NEAR: u128 = 200;
 /// Needed in `<root>` before anything is spent: the accounts above, wNEAR, storage and gas.
-const MIN_ROOT_NEAR: u128 = 18_500;
+const MIN_ROOT_NEAR: u128 = 18_600;
 
 fn milli(n: u128) -> NearToken {
     NearToken::from_millinear(n)
@@ -82,7 +82,7 @@ async fn main() -> Result<()> {
     // Everything is checked before the first transaction, so a refused run spends nothing.
     let sub = |name: &str| -> Result<AccountId> { Ok(format!("{name}.{root_id}").parse()?) };
     let vault = sub("vault")?;
-    for id in ["intents", "agent", "shop", "attacker", "vault"].map(sub) {
+    for id in ["intents", "agent", "shop", "desk", "attacker", "vault"].map(sub) {
         let id = id?;
         if worker.view_account(&id).await.is_ok() {
             bail!("{id} already exists; use a fresh root account");
@@ -114,6 +114,7 @@ async fn main() -> Result<()> {
     };
     let agent = create("agent", AGENT_NEAR).await?;
     let shop = create("shop", BYSTANDER_NEAR).await?;
+    let desk = create("desk", BYSTANDER_NEAR).await?;
     let attacker = create("attacker", BYSTANDER_NEAR).await?;
 
     // 1. Our own Intents instance from the pinned mainnet binary; `<root>` holds its admin roles.
@@ -169,7 +170,10 @@ async fn main() -> Result<()> {
                 "max_ttl_sec": 600,
                 "max_pending": 8,
             },
-            "merchants": [{ "account_id": shop.id(), "label": "Report Shop" }],
+            "merchants": [
+                { "account_id": shop.id(), "label": "Report Shop" },
+                { "account_id": desk.id(), "label": "Data Desk" },
+            ],
         })))
         .transact()
         .await?
@@ -201,13 +205,13 @@ async fn main() -> Result<()> {
     // 6. The bootstrap keys go: `intents.`, `shop.` and `attacker.` end with no key (Intents' admin
     //    roles are `<root>`'s), `agent.` keeps only its restricted keys. Each deletion is signed by the
     //    key it removes, which the protocol allows.
-    for acct in [intents.as_account(), &shop, &attacker, &agent] {
+    for acct in [intents.as_account(), &shop, &desk, &attacker, &agent] {
         acct.batch(acct.id()).delete_key(acct.secret_key().public_key()).transact().await?.into_result()?;
     }
 
     // Key inventory, checked on chain: no full-access key anywhere under `<root>`, and the agent's
     // keys are exactly the restricted ones. T18, T19 and T23 on testnet.
-    for id in [&vault, intents.id(), shop.id(), attacker.id()] {
+    for id in [&vault, intents.id(), shop.id(), desk.id(), attacker.id()] {
         let keys = worker.view_access_keys(id).await?;
         ensure!(keys.is_empty(), "{id} has {} access keys", keys.len());
     }
@@ -225,7 +229,7 @@ async fn main() -> Result<()> {
             AccessKeyPermission::FullAccess => bail!("{} still has a full-access key", agent.id()),
         }
     }
-    println!("keys: vault/intents/shop/attacker none; agent {AGENT_KEYS} function-call keys for {vault}::request_payment");
+    println!("keys: vault/intents/shop/desk/attacker none; agent {AGENT_KEYS} function-call keys for {vault}::request_payment");
 
     // The vault's Intents balance must be what was sent.
     let bal: String = worker
@@ -246,9 +250,10 @@ async fn main() -> Result<()> {
         "agent_id": agent.id(),
         "agent_keys": agent_keys,
         "merchant_id": shop.id(),
+        "merchant2_id": desk.id(),
         "attacker_id": attacker.id(),
         "keys": {
-            "vault": [], "intents": [], "shop": [], "attacker": [],
+            "vault": [], "intents": [], "shop": [], "desk": [], "attacker": [],
             "agent": format!("{AGENT_KEYS} function-call keys, receiver {vault}, method request_payment"),
         },
     });

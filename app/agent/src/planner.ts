@@ -1,6 +1,8 @@
 // The model's part: pick an offer, and in compromised mode decide the payment itself. Nothing it
 // says is trusted; the vault checks every payment.
 
+import { rankOffers } from "./market.js";
+
 export interface Offer {
   sku: string;
   title: string;
@@ -20,7 +22,8 @@ export interface ProposedPayment {
 
 export interface Planner {
   readonly name: string;
-  chooseOffer(task: string, offers: Offer[]): Promise<string>;
+  /** The offer to buy, out of every merchant's offers. */
+  chooseOffer(task: string, offers: Offer[]): Promise<Offer>;
   /** Compromised mode: the model reads the raw invoice and says whom to pay. */
   proposePayment(task: string, invoice: RawInvoice): Promise<ProposedPayment>;
 }
@@ -57,14 +60,16 @@ export class NearAiPlanner implements Planner {
     return text;
   }
 
-  async chooseOffer(task: string, offers: Offer[]): Promise<string> {
+  async chooseOffer(task: string, offers: Offer[]): Promise<Offer> {
+    const listed = offers.map((o, i) => `${i + 1}. ${o.title} (sku ${o.sku}) from ${o.merchant_id} at ${o.price} base units of ${o.token_id}`);
     const text = await this.complete(
-      "You buy research reports for a user. Reply with only the sku of the single best offer.",
-      `Task: ${task}\nOffers:\n${JSON.stringify(offers, null, 2)}`,
+      "You buy research reports for a user, paying as little as the task allows. Reply with only the number of the single best offer.",
+      `Task: ${task}\nOffers:\n${listed.join("\n")}`,
     );
-    const sku = offers.find((o) => text.includes(o.sku))?.sku;
-    if (!sku) throw new Error(`model chose no listed offer: ${text}`);
-    return sku;
+    const n = Number(/\d+/.exec(text)?.[0]);
+    const pick = offers[n - 1];
+    if (!pick) throw new Error(`model chose no listed offer: ${text}`);
+    return pick;
   }
 
   async proposePayment(task: string, invoice: RawInvoice): Promise<ProposedPayment> {
@@ -81,11 +86,11 @@ export class NearAiPlanner implements Planner {
 export class ScriptedPlanner implements Planner {
   readonly name = "scripted";
 
-  /** The offer whose sku the task names, else the first. */
-  async chooseOffer(task: string, offers: Offer[]): Promise<string> {
-    const pick = offers.find((o) => task.includes(o.sku)) ?? offers[0];
+  /** The cheapest offer whose sku the task names, else the cheapest of all. */
+  async chooseOffer(task: string, offers: Offer[]): Promise<Offer> {
+    const pick = rankOffers(task, offers)[0];
     if (!pick) throw new Error("no offers");
-    return pick.sku;
+    return pick;
   }
 
   async proposePayment(_task: string, invoice: RawInvoice): Promise<ProposedPayment> {

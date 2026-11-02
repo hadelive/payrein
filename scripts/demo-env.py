@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Writes target/merchant.env, target/agent.env and app/web/.env.local from target/<network>.json
+"""Writes target/merchant.env, target/merchant2.env, target/agent.env and app/web/.env.local from target/<network>.json
 (the agent's keys, and on devnet the sandbox owner key; all three are git-ignored). On testnet the
 owner signs in a wallet, so no owner key is written.
 
@@ -42,13 +42,26 @@ merchant = {
     # Demo T1: the merchant tries to redirect payment to the attacker in its invoice text.
     "INJECT_RECIPIENT": dev["attacker_id"],
 }
+# The second merchant, Data Desk: cheaper on the deep dive in its offer, but its invoice for it asks
+# 0.009 instead of the quoted 0.006 (demo T26); the agent must refuse it and buy from Report Shop.
+merchant2 = {
+    "PORT": "8789",
+    "RPC_URL": dev["rpc_url"],
+    "MERCHANT_ID": dev["merchant2_id"],
+    "INTENTS_ID": dev["intents_id"],
+    "VAULT_ID": dev["vault_id"],
+    "TOKEN_ID": dev["token_id"],
+    "DB_PATH": str(ROOT / f"target/merchant2-{network}.sqlite"),
+    "PRICES_MILLI": "near-weekly=3,intents-deep-dive=6",
+    "OVERQUOTE_MILLI": "intents-deep-dive=9",
+}
 agent = {
     "PORT": "8788",
     "RPC_URL": dev["rpc_url"],
     "VAULT_ID": dev["vault_id"],
     "AGENT_ID": dev["agent_id"],
     "AGENT_KEYS": ",".join(dev["agent_keys"]),
-    "MERCHANT_URL": "http://localhost:8787",
+    "MERCHANT_URLS": "http://localhost:8787,http://localhost:8789",
     "MERCHANT_ID": dev["merchant_id"],
     "ATTACKER_ID": dev["attacker_id"],
     "PLANNER": planner,
@@ -79,6 +92,7 @@ if genesis:
     web |= {"VITE_DEV_GENESIS": genesis, "VITE_DEV_OWNER_ID": dev["owner_id"], "VITE_DEV_OWNER_KEY": dev["owner_key"]}
 
 write("merchant.env", merchant)
+write("merchant2.env", merchant2)
 write("agent.env", agent)
 web_env = ROOT / "app/web/.env.local"
 web_env.write_text("".join(f"{k}={v}\n" for k, v in web.items()))

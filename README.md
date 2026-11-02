@@ -19,7 +19,7 @@ Prerequisites: Rust 1.93+ (tested with 1.97) with the `wasm32-unknown-unknown` t
 ```sh
 pnpm install
 make test-security     # builds the contract, runs 25 attack tests against the real Intents code
-make demo-local        # local chain + merchant + agent + owner app on http://127.0.0.1:5173
+make demo-local        # local chain + two merchants + agent + owner app on http://127.0.0.1:5173
 ```
 
 `make test-security` runs every test against the exact `intents.near` binary that is live on
@@ -30,10 +30,10 @@ With `make demo-local` running, open the app and click the demo buttons in this 
 
 | Do | See |
 |---|---|
-| **Buy a report** | Agent panel: offers, invoice, `accepted as op 1`, `report delivered`. Budget bar: 0.002 spent. The invoice carried text telling AI agents to pay `attacker.test.near`; the agent's normal path builds the payment from the invoice's fields and ignores it. |
+| **Buy a report** | Agent panel: `4 offers from 2 merchants`, `chose near-weekly from shop.test.near` (0.002 beats Data Desk's 0.003), invoice, `accepted as op 1`, `report delivered`. Budget bar: 0.002 spent. The invoice carried text telling AI agents to pay `attacker.test.near`; the agent's normal path builds the payment from the invoice's fields and ignores it. |
 | **T1 injected merchant** | The agent now runs as if hijacked and obeys that text: `decided to pay attacker.test.near`, then `refused: MerchantNotAllowed`. Activity: *The recipient is not on the allowlist.* Attacker balance stays 0. |
 | **T2 leaked key** | A script signs with the agent's key and calls the vault directly, bypassing the app: same refusal. |
-| **Buy (needs approval)** | 0.008 is above the 0.005 threshold. Approvals shows the payment in plain words, the budget after it, why it needs approval, the exact call the wallet will show, and the agent's own note in a box marked *not checked*. |
+| **Buy (needs approval)** | T26 first: Data Desk quotes the deep dive at 0.006, cheaper than Report Shop's 0.008, so the agent picks it; its invoice asks 0.009. The agent refuses it without paying (`refused desk.test.near's invoice, nothing paid: invoiced 0.009, quoted 0.006`) and buys from Report Shop. The contract would have accepted 0.009 (it is under the 0.01 per-payment cap): price honesty is the agent's check, the caps are the contract's. Then 0.008 is above the 0.005 threshold. Approvals shows the payment in plain words, the budget after it, why it needs approval, the exact call the wallet will show, and the agent's own note in a box marked *not checked*. |
 | **T9 tampered approval** | A tampered app asks to approve 0.009 instead of 0.008: *The approval did not match the stored payment in every field. (ApprovalMismatch)* The contract catches any changed field. It cannot catch an app that swaps in a different, complete awaiting payment; only the wallet's display of `approve`'s full arguments does (T20), which is why the owner reads the wallet, not the app. |
 | **Approve** | The vault pays 0.008; the merchant checks the owner's transaction on chain and delivers. Spent 0.010. |
 | **T5 8 at once** | 8 requests of 0.004 from 8 keys in the same moment, 0.020 left: exactly 5 settle, 3 `refused: OverDaily`. The bar stops at the 0.030 limit. Run instead while step 4's payment is still waiting (as the landing page's capture was), the pending queue of 8 has one slot taken, so 7 settle and 1 is `refused: TooManyPending`: a different limit, same contract. |
@@ -55,7 +55,7 @@ is where the wallet's display of `approve`'s arguments is checked (T20).
 ```sh
 # a testnet account with at least 18.5 NEAR, its key in ~/.near-credentials/testnet/<you>.testnet.json
 TESTNET_ACCOUNT=<you>.testnet make testnet   # creates intents., agent., shop., attacker., vault. under it
-make demo-testnet                            # merchant + agent + owner app on http://127.0.0.1:5173
+make demo-testnet                            # two merchants + agent + owner app on http://127.0.0.1:5173
 pnpm --filter @vault/agent e2e testnet       # optional: the same checks, approving with your key file
 ```
 
@@ -127,7 +127,7 @@ tests/security/           sandbox attack tests, harness, devnet example
 tests/fixtures/           pinned intents.wasm and wrap.wasm from mainnet, with checksums
 app/agent/                agent runner: planner, restricted keys, demo attacks, SSE log
 app/web/                  owner app: vault, approvals, activity, agent log (Vite, React)
-demo/merchant/            demo merchant: invoices, on-chain payment verification (Hono, SQLite)
+demo/merchant/            demo merchant: invoices, on-chain payment verification (Hono, SQLite); run twice as Report Shop and Data Desk
 docs/                     spec, threat model, acceptance plan, architecture
 scripts/                  fixtures, demo env, mutation check, demo launcher
 ```
@@ -138,7 +138,7 @@ The first users are teams whose agents buy data or API calls from suppliers they
 want small payments to go through on their own, a hard cap on what a compromised agent can lose, and
 a say on anything larger. The vault gives them that as a contract they deploy themselves plus an
 owner app; the planned agent SDK and merchant library (below) are how it would be embedded. What is
-shown today: one token, one agent identity, one demo merchant, and the attack evidence above. What is
+shown today: one token, one agent identity, two demo merchants the agent chooses between, and the attack evidence above. What is
 not: any outside team using it, any revenue, or a validated business model. The next test of the idea
 is one independent integration, measuring setup time, successful purchases, approval burden and
 operating cost. Spending limits alone are not a moat; integration quality, trusted operation and

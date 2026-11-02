@@ -470,10 +470,10 @@ function DemoStrip({ state, steps, canSign, busy, ownerCall, setNotice }: {
     card?.focus();
   };
   const items: Array<{ n: number; label: string; hint: string; attack?: boolean; disabled?: boolean; onClick: () => void }> = [
-    { n: 1, label: "Buy a report", hint: "normal purchase, 0.002", onClick: () => void run(1, "/buy", { task: "Buy near-weekly" }, "Purchase") },
+    { n: 1, label: "Buy a report", hint: "cheapest of two merchants' offers, 0.002", onClick: () => void run(1, "/buy", { task: "Buy near-weekly" }, "Purchase") },
     { n: 2, label: "T1 injected merchant", hint: "hijacked agent obeys the invoice", attack: true, onClick: () => void run(2, "/buy", { task: "Buy near-weekly", compromised: true }, "T1") },
     { n: 3, label: "T2 leaked key", hint: "calls the vault directly", attack: true, onClick: () => void run(3, "/attack/direct-call", {}, "T2") },
-    { n: 4, label: "Buy (needs approval)", hint: "0.008, above the threshold", onClick: () => void run(4, "/buy", { task: "Buy intents-deep-dive" }, "Purchase") },
+    { n: 4, label: "Buy (needs approval)", hint: "the cheaper quote is dishonest and refused; 0.008 needs approval", onClick: () => void run(4, "/buy", { task: "Buy intents-deep-dive" }, "Purchase") },
     {
       n: 5,
       label: "T9 tampered approval",

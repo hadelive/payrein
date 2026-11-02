@@ -151,3 +151,4 @@ ol.steps li.deliver span:last-child { font-weight: 600; }
 @media (max-width: 520px) {
   ol.steps li { grid-template-columns: minmax(0, 1fr); gap: 0; }
 }
+ol.steps li.quote span:last-child { font-weight: 600; color: var(--bad); }

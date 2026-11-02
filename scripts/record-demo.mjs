@@ -47,7 +47,7 @@ await waitEnabled("Buy a report");
 await cap(0, "Payrein holds an AI agent’s spending money on NEAR Intents. The agent can only ask the vault to pay; the contract enforces the allowlist, the per-payment and daily limits, and the owner’s approval of exact payments. Local devnet, scripted model.");
 await sleep(7000);
 
-await cap(1, "Normal purchase, 0.002 wNEAR. The agent asks the vault to pay the Report Shop; the merchant verifies the payment on chain and delivers.");
+await cap(1, "Normal purchase. Two merchants offer the weekly report; the agent takes the cheaper, 0.002 wNEAR from Report Shop. The merchant verifies the payment on chain and delivers.");
 await clickStep("Buy a report");
 await waitText("report delivered"); await scrollTo("section.demo"); await sleep(3500);
 
@@ -59,7 +59,7 @@ await cap(3, "T2, leaked key. A script holding the agent’s key calls the vault
 await clickStep("T2 leaked key");
 await page.waitForFunction(() => document.body.innerText.split("MerchantNotAllowed").length > 2, { timeout: 90000, polling: 200 }); await sleep(3500);
 
-await cap(4, "0.008 is above the 0.005 approval threshold, so the payment waits for the owner. The Approvals card shows the exact call the wallet will display; the agent’s note is marked “not checked”.");
+await cap(4, "Data Desk quotes the deep dive cheaper, then invoices 0.009 instead of 0.006. The agent refuses it, pays nothing, and buys from Report Shop at 0.008, which is above the 0.005 threshold and waits for the owner. The card shows the exact call the wallet will display.");
 await clickStep("Buy (needs approval)");
 await page.waitForSelector("article.card[id^='approval-']", { timeout: 90000 });
 await page.evaluate(() => document.querySelector("article.card[id^='approval-'] details")?.setAttribute("open", ""));
