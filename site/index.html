@@ -218,6 +218,7 @@
         <ul class="rows rows--wide">
           <li><span>The owner’s key</span><span>Stolen, it changes the policy and withdraws.</span></li>
           <li><span>Delivery</span><span>A merchant can take payment and not deliver. The limits cap the loss.</span></li>
+          <li><span>Price</span><span>A merchant can quote one price and invoice a higher one within the caps. The contract admits it; the agent’s own check refuses an invoice that differs from its quote and pays nothing.</span></li>
           <li><span>Intents admins</span><span>Can pause, lock, force-transfer the vault’s balance and upgrade Intents.</span></li>
           <li><span>A lost callback</span><span>Keeps its slot and day’s reservation until the owner resolves it after ten minutes.</span></li>
           <li><span>Midnight UTC</span><span>The cap resets; up to twice it can move across the boundary. Accepted.</span></li>
@@ -238,7 +239,7 @@
             <tr><td><time datetime="2026-10-22">22 Oct 2026</time></td><td>Owner app layout with numbered steps, evidence rerun, submission kit</td><td class="path">evidence/local-run.md</td></tr>
             <tr><td><time datetime="2026-10-25">25 Oct 2026</time></td><td>Claims matched to tests, product thesis</td><td class="path">docs/threat-model.md</td></tr>
             <tr><td><time datetime="2026-11-01">1 Nov 2026</time></td><td>Demo video recorded from the local run</td><td class="path">evidence/video-*.png</td></tr>
-            <tr><td><time datetime="2026-11-02">2 Nov 2026</time></td><td>Repository public, submitted; review findings fixed: bootstrap keys, merchant redelivery</td><td class="path">docs/review-2026-11-02.md</td></tr>
+            <tr><td><time datetime="2026-11-02">2 Nov 2026</time></td><td>Repository public, submitted; review findings fixed: bootstrap keys, merchant redelivery; second merchant and the quote check</td><td class="path">docs/review-2026-11-02.md</td></tr>
             <tr><td>to 14 Nov 2026</td><td>Planned: testnet with a real wallet, real-model run</td><td>README, status</td></tr>
           </tbody>
         </table>
@@ -250,7 +251,7 @@
         <div class="run__text">
           <div class="head">
             <h2 id="run-head">Run it in three commands</h2>
-            <p class="lead">A local chain, the merchant, the agent, the owner app. <a href="https://github.com/hadelive/payrein#try-it-judges-start-here">Prerequisites in the README.</a></p>
+            <p class="lead">A local chain, two merchants, the agent, the owner app. <a href="https://github.com/hadelive/payrein#try-it-judges-start-here">Prerequisites in the README.</a></p>
           </div>
           <pre class="code"><code>pnpm install
 make test-security

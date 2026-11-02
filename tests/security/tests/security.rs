@@ -522,6 +522,68 @@ async fn t17d_gas_table() -> Result<()> {
     Ok(())
 }
 
+/// Gas on the paths t17d does not cover, for the evidence folder: an owner approval (three
+/// receipts), a rejection, a request admitted with the pending queue one short of its cap, a
+/// transfer that fails at Intents (the callback's failure branch), and the owner's recovery of a
+/// stuck payment. Printed, and each bounded like t17d: the static allocations cover it twice.
+#[tokio::test]
+async fn t17e_gas_other_paths() -> Result<()> {
+    let burnt = |res: &near_workspaces::result::ExecutionFinalResult, who: &near_workspaces::AccountId, nth: usize| {
+        res.receipt_outcomes().iter().filter(|o| &o.executor_id == who).nth(nth).map(|o| o.gas_burnt.as_gas())
+    };
+    let env = setup().await?;
+
+    // Three awaiting ops, then a fourth request (the cap is 4): admission scans all of them.
+    let mut awaiting = Vec::new();
+    for _ in 0..3 {
+        awaiting.push(env.pay(w(50)).await?);
+    }
+    let res = env.request(env.shop.id(), w(10)).await?;
+    res.clone().into_result()?;
+    let request_full = burnt(&res, &env.vault, 0).unwrap();
+
+    // Approval of an awaiting op: approve on the vault, mt_transfer on Intents, the callback.
+    let res = env.owner_call("approve", json!({ "op": awaiting[0] })).await?;
+    res.clone().into_result()?;
+    let (approve, approve_transfer, approve_cb) =
+        (burnt(&res, &env.vault, 0).unwrap(), burnt(&res, env.intents.id(), 0).unwrap(), burnt(&res, &env.vault, 1).unwrap());
+
+    // Rejection of an awaiting op.
+    let res = env.owner_call("reject", json!({ "op_id": op_id(&awaiting[1]) })).await?;
+    res.clone().into_result()?;
+    let reject = burnt(&res, &env.vault, 0).unwrap();
+
+    // A transfer that fails at Intents (balance withdrawn): the callback's failure branch.
+    let left = env.balance(&env.vault).await?;
+    env.owner_call("withdraw", json!({ "amount": left.to_string() })).await?.into_result()?;
+    let res = env.request(env.shop.id(), w(10)).await?;
+    ensure!(events(&res, "failed").len() == 1, "transfer should have failed");
+    let failed_cb = burnt(&res, &env.vault, 1).unwrap();
+
+    println!(
+        "gas burnt: request_payment with 3 awaiting {request_full}, approve {approve} + mt_transfer {approve_transfer} + on_settled {approve_cb}, reject {reject}, on_settled after a failed transfer {failed_cb}"
+    );
+    for (name, gas, budget) in [
+        ("request_payment", request_full, 15),
+        ("approve", approve, 15),
+        ("mt_transfer", approve_transfer, 15),
+        ("on_settled", approve_cb, 10),
+        ("on_settled (failed)", failed_cb, 10),
+    ] {
+        ensure!(gas * 2 <= Gas::from_tgas(budget).as_gas(), "{name} burnt {gas}");
+    }
+
+    // Recovery of a stuck payment, in the gas-starved build.
+    let env = setup_with(true).await?;
+    let res = env.request(env.shop.id(), w(10)).await?;
+    let op: Value = res.clone().into_result()?.json()?;
+    env.advance(610).await?;
+    let res = env.owner_call("release_stuck", json!({ "op_id": op_id(&op), "outcome": "Settled" })).await?;
+    res.clone().into_result()?;
+    println!("gas burnt: release_stuck {}", burnt(&res, &env.vault, 0).unwrap());
+    Ok(())
+}
+
 #[tokio::test]
 async fn t18_t19_vault_has_no_keys_anywhere() -> Result<()> {
     let env = setup().await?;

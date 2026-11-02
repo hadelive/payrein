@@ -24,7 +24,8 @@ make demo-local        # local chain + two merchants + agent + owner app on http
 
 `make test-security` runs every test against the exact `intents.near` binary that is live on
 mainnet, pinned in `tests/fixtures/` with its checksum (`make check-live` compares it with mainnet
-today). Expect `test result: ok. 25 passed` for `security` and `2 passed` for `spike`.
+today). Expect `test result: ok. 26 passed` for `security` (the 25 attack tests and the `t17e` gas
+benchmark) and `2 passed` for `spike`.
 
 With `make demo-local` running, open the app and click the demo buttons in this order:
 

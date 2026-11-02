@@ -9,7 +9,7 @@ in `tests/fixtures/` (mainnet block 220928157; `intents.near` code hash
 | Suite | Command | Result |
 |---|---|---|
 | Contract unit tests | `cargo test -p policy-vault` | 27 passed |
-| Sandbox attack tests | `make test-security` | `security` 25 passed, `spike` 2 passed |
+| Sandbox attack tests | `make test-security` | `security` 25 passed, `spike` 2 passed (21–22 Oct); 26 passed with the `t17e` gas benchmark added, 2 Nov |
 | Mutation check | `python3 -I scripts/mutation-check.py` | 5 of 5 mutants caught (below); each covering test passes on the real contract first and must then fail on an assertion, not a build error |
 | Merchant | `pnpm --filter @vault/merchant test` | 18 passed |
 | Agent runner | `pnpm --filter @vault/agent test` | 20 passed |
@@ -38,6 +38,12 @@ callback, and a finished op has already left the active list.
 | Gas burnt with state at its bounds (32 merchants, full recent ring, awaiting ops to scan, 64-byte invoice), one successful transfer; failure and maximum-active paths not measured: `request_payment` | 2.82 Tgas | `t17d_gas_table` |
 | Same: `mt_transfer` on `intents.near` | 3.73 Tgas; receipt carries exactly 15 Tgas | `t17d_gas_table` |
 | Same: `on_settled` callback | 2.00 Tgas; receipt carries exactly 10 Tgas | `t17d_gas_table` |
+| `request_payment` admitted with 3 awaiting ops (pending cap 4) | 2.53 Tgas | `t17e_gas_other_paths`, 2 Nov |
+| Owner `approve` of an awaiting op: `approve`, `mt_transfer`, `on_settled` | 2.39, 3.71, 1.69 Tgas | `t17e_gas_other_paths`, 2 Nov |
+| Owner `reject` of an awaiting op | 1.63 Tgas | `t17e_gas_other_paths`, 2 Nov |
+| `on_settled` after a transfer that failed at Intents (balance withdrawn) | 0.22 Tgas | `t17e_gas_other_paths`, 2 Nov |
+| Owner `release_stuck` of a gas-starved payment after 10 minutes | 1.62 Tgas | `t17e_gas_other_paths`, 2 Nov |
+| Settlement latency | not measured: sandbox block times say nothing about mainnet | |
 | Vault storage after 15 and after 30 soak cycles (4 expiring requests and 1 failed transfer each) | 219,277 bytes both times | `t15b_storage_soak` |
 | Overlap in the race test | the refused request executed in an earlier block than the winner's settlement callback | `t05_t06_*` asserts it |
 | Refund of the 1 yocto after a failed transfer | `mt_transfer` carries a deposit of exactly 1; the runtime's refund receipt from `system` to the vault is a `Transfer` of exactly 1 | `t16e_*` (receipt actions via `EXPERIMENTAL_tx_status`) |
