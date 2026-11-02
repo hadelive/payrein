@@ -1,7 +1,8 @@
 # Setup checklist for the hackathon run
 
 What the owner prepares before the November run, in order, with where each secret lives and a
-check after each step. Commands were checked against this repository's scripts on 25 October 2026
+check after each step. Commands were checked against this repository's scripts on 25 October 2026 (account list and
+minimum balance updated 2 November, after the second merchant was added)
 and against the tool docs named in each step; anything not checked end to end is marked
 **unverified** so you can confirm it as you go.
 
@@ -17,9 +18,9 @@ Secrets never go into a terminal command line, a chat window, or git. They live 
 ## 1. A funded testnet account and its key file
 
 The testnet bootstrap (`tests/security/examples/testnet.rs`) needs one account, `<you>.testnet`,
-with at least 18.5 NEAR, and its full-access key in near-cli's legacy keychain file. It creates
-`intents.`, `agent.`, `shop.`, `attacker.` and `vault.` under that account, so the name must be
-fresh: none of those five may exist yet.
+with at least 18.6 NEAR, and its full-access key in near-cli's legacy keychain file. It creates
+`intents.`, `agent.`, `shop.`, `desk.`, `attacker.` and `vault.` under that account, so the name must
+be fresh: none of those six may exist yet.
 
 First install the README's prerequisites, since `make testnet` builds the contract: Rust 1.93+
 with `rustup target add wasm32-unknown-unknown`, `cargo install cargo-near --version 0.22.0 --locked`,
@@ -64,7 +65,7 @@ credential files must be `-rw-------`; `chmod 600` any that are not.
 
 **Faucet amount, unverified.** The NEAR docs say the faucet sends "a small amount" without a figure
 (https://docs.near.org/getting-started/faucet); community notes say about 10 NEAR per account, and
-the faucet may rate-limit repeated requests. The bootstrap refuses to spend anything below 18.5 NEAR,
+the faucet may rate-limit repeated requests. The bootstrap refuses to spend anything below 18.6 NEAR,
 so if the summary shows less, create a second faucet account, read its balance from its own summary,
 and move all but about 0.5 NEAR across (adjust the amount to what it actually holds):
 
@@ -81,11 +82,11 @@ the near-cli-rs source; `near tokens <you>-2.testnet send-near <you>.testnet '1 
 network-config testnet --help` lists the signing options). An alternative is https://near-faucet.io,
 which lets you choose the amount (external site, **unverified**).
 
-**Verify:** the summary for `<you>.testnet` shows at least 18.5 NEAR, and none of the five
+**Verify:** the summary for `<you>.testnet` shows at least 18.6 NEAR, and none of the six
 sub-accounts exist:
 
 ```sh
-for a in intents agent shop attacker vault; do
+for a in intents agent shop desk attacker vault; do
   near account view-account-summary $a.<you>.testnet network-config testnet now
 done
 ```
@@ -185,12 +186,12 @@ With steps 1 and 3 done (the key file in place, `.env` written):
 
 ```sh
 pnpm install
-TESTNET_ACCOUNT=<you>.testnet make testnet     # spends about 18.5 NEAR, writes target/testnet.json
+TESTNET_ACCOUNT=<you>.testnet make testnet     # spends about 18.6 NEAR, writes target/testnet.json
 make demo-testnet                              # merchant, agent and owner app on http://127.0.0.1:5173
 ```
 
 `make testnet` checks the chain id, that the key file's key is a full-access key on the account,
-the balance and the five free names before it sends anything, so a preflight refusal costs
+the balance and the six free names before it sends anything, so a preflight refusal costs
 nothing. A failure after that point can leave funded sub-accounts behind, and a rerun is not
 resumable: it will refuse because the names exist, so use a fresh root name.
 
