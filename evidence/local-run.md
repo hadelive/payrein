@@ -85,7 +85,9 @@ explicit network): all 11 checks passed again. The app after that run:
 
 ## Not yet done
 
-- Testnet deployment (`make testnet`) and its transaction evidence.
+The testnet deployment was done on 6 Nov 2026: [testnet-run.md](testnet-run.md).
+
+
 - Mainnet deployment and its transaction evidence.
 - A wallet that shows `approve`'s full arguments (T20), confirmed with a screenshot.
 - A run with a real model (`PLANNER=nearai`).

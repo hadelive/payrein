@@ -121,8 +121,9 @@ The T5 count is exact in any order: each admission sees all earlier ones as spen
 
 ## Evidence (`evidence/`)
 
-Planned list from October. As of 2 Nov 2026 the mainnet and testnet items are not produced; what
-exists is listed in the README's evidence table.
+Planned list from October. As of 6 Nov 2026 the testnet run is done
+([testnet-run.md](../evidence/testnet-run.md)) and the mainnet items are not produced; what exists
+is listed in the README's evidence table.
 
 - Mainnet: vault, agent and merchant accounts; the deployment transaction (one transaction, no
   `AddKey`); tx hashes of funding, each demo payment, each rejection and the approval;

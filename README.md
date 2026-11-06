@@ -55,7 +55,7 @@ is where the wallet's display of `approve`'s arguments is checked (T20).
 
 ```sh
 # a testnet account with at least 19.6 NEAR, its key in ~/.near-credentials/testnet/<you>.testnet.json
-TESTNET_ACCOUNT=<you>.testnet make testnet   # creates intents., agent., shop., attacker., vault. under it
+TESTNET_ACCOUNT=<you>.testnet make testnet   # creates intents., agent., shop., desk., attacker., vault.
 make demo-testnet                            # two merchants + agent + owner app on http://127.0.0.1:5173
 pnpm --filter @vault/agent e2e testnet       # optional: the same checks, approving with your key file
 ```
@@ -114,6 +114,7 @@ Full threat model: [docs/threat-model.md](docs/threat-model.md).
 | 64-bit values exact from the vault's view to the bytes of the owner's `approve` (T25); explanation template (T21) | `app/agent/test`, `app/web/test` |
 | Gas, storage and test output from the last full run | [evidence/](evidence/) |
 | The pinned `intents.near` and `wrap.near` binaries equal the live mainnet code: checked 2 November 2026 at block 222693527 | `make check-live`, [evidence/local-run.md](evidence/local-run.md) |
+| Testnet run of 6 November 2026: the bootstrap and every demo check on NEAR testnet, with transaction links, the vault's budget, merchant balances and the key inventory read back from the chain | [evidence/testnet-run.md](evidence/testnet-run.md) |
 | Security review of 2 November 2026 by Codex gpt-6-astra (an AI review, not an audit): findings, their verification and the fixing commits | [docs/review-2026-11-02.md](docs/review-2026-11-02.md) |
 | Demo video of the seven steps above, recorded on the local devnet on 1 November 2026 with `scripts/record-demo.mjs` (55 s, captions on screen); stills of the approval card, the tampered approval and the full daily bar | `evidence/video-*.png`, the video on the X post |
 
@@ -177,10 +178,12 @@ public and the project submitted; a security review by Codex gpt-6-astra with it
 the same day ([docs/review-2026-11-02.md](docs/review-2026-11-02.md): the testnet bootstrap would
 have installed full-access keys derived from a public seed, the merchant could not re-serve a paid
 invoice after a lost response, two smaller app bugs); `make check-live` rerun; the claims in the
-docs matched to the code and the evidence; MIT licence and CI added.
+docs matched to the code and the evidence; MIT licence and CI added. 6 November, the testnet
+deployment under `payrein-hv-3.testnet` and every demo check passing on it
+([evidence/testnet-run.md](evidence/testnet-run.md)); the bootstrap now funds Intents 15 NEAR and
+creates it first, after a first attempt fell 0.004 NEAR short.
 
-**Planned during the window (1–14 November 2026):** the testnet deployment and its evidence, the
-wallet check of `approve`'s arguments with a screenshot (T20), a run with a real model on NEAR AI
+**Planned during the window (1–14 November 2026):** the wallet check of `approve`'s arguments with a screenshot (T20), a run with a real model on NEAR AI
 Cloud, the mainnet pilot with tiny amounts, and whatever those turn up. Items move to the list
 above only with dated evidence and commits.
 
