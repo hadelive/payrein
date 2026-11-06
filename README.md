@@ -54,13 +54,13 @@ testnet account is the vault's owner and approves in a testnet wallet (MyNearWal
 is where the wallet's display of `approve`'s arguments is checked (T20).
 
 ```sh
-# a testnet account with at least 18.5 NEAR, its key in ~/.near-credentials/testnet/<you>.testnet.json
+# a testnet account with at least 19.6 NEAR, its key in ~/.near-credentials/testnet/<you>.testnet.json
 TESTNET_ACCOUNT=<you>.testnet make testnet   # creates intents., agent., shop., attacker., vault. under it
 make demo-testnet                            # two merchants + agent + owner app on http://127.0.0.1:5173
 pnpm --filter @vault/agent e2e testnet       # optional: the same checks, approving with your key file
 ```
 
-Most of the 18.5 NEAR is storage for Intents' 1.3 MB of code. The bootstrap checks the balance and
+Most of the 19.6 NEAR is storage for Intents' 1.3 MB of code. The bootstrap checks the balance and
 that none of the accounts exist before it sends anything. The demo's checks assume an unused daily
 budget, so the end-to-end script runs once per UTC day.
 

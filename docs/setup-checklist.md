@@ -18,7 +18,7 @@ Secrets never go into a terminal command line, a chat window, or git. They live 
 ## 1. A funded testnet account and its key file
 
 The testnet bootstrap (`tests/security/examples/testnet.rs`) needs one account, `<you>.testnet`,
-with at least 18.6 NEAR, and its full-access key in near-cli's legacy keychain file. It creates
+with at least 19.6 NEAR, and its full-access key in near-cli's legacy keychain file. It creates
 `intents.`, `agent.`, `shop.`, `desk.`, `attacker.` and `vault.` under that account, so the name must
 be fresh: none of those six may exist yet.
 
@@ -65,7 +65,7 @@ credential files must be `-rw-------`; `chmod 600` any that are not.
 
 **Faucet amount, unverified.** The NEAR docs say the faucet sends "a small amount" without a figure
 (https://docs.near.org/getting-started/faucet); community notes say about 10 NEAR per account, and
-the faucet may rate-limit repeated requests. The bootstrap refuses to spend anything below 18.6 NEAR,
+the faucet may rate-limit repeated requests. The bootstrap refuses to spend anything below 19.6 NEAR,
 so if the summary shows less, create a second faucet account, read its balance from its own summary,
 and move all but about 0.5 NEAR across (adjust the amount to what it actually holds):
 
@@ -82,7 +82,7 @@ the near-cli-rs source; `near tokens <you>-2.testnet send-near <you>.testnet '1 
 network-config testnet --help` lists the signing options). An alternative is https://near-faucet.io,
 which lets you choose the amount (external site, **unverified**).
 
-**Verify:** the summary for `<you>.testnet` shows at least 18.6 NEAR, and none of the six
+**Verify:** the summary for `<you>.testnet` shows at least 19.6 NEAR, and none of the six
 sub-accounts exist:
 
 ```sh
@@ -186,7 +186,7 @@ With steps 1 and 3 done (the key file in place, `.env` written):
 
 ```sh
 pnpm install
-TESTNET_ACCOUNT=<you>.testnet make testnet     # spends about 18.6 NEAR, writes target/testnet.json
+TESTNET_ACCOUNT=<you>.testnet make testnet     # spends about 19.6 NEAR, writes target/testnet.json
 make demo-testnet                              # merchant, agent and owner app on http://127.0.0.1:5173
 ```
 

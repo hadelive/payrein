@@ -29,15 +29,16 @@ use std::path::PathBuf;
 const RPC: &str = "https://test.rpc.fastnear.com";
 const WRAP: &str = "wrap.testnet";
 
-// Native NEAR each new account starts with. Intents' 1.3 MB of code needs ~13 NEAR of storage.
-const INTENTS_NEAR: u128 = 14_000;
+// Native NEAR each new account starts with. Intents' 1.3 MB of code locks ~13 NEAR and its `new`
+// call writes ~1 NEAR more of state: 14 NEAR fell 0.004 short on testnet (6 Nov 2026).
+const INTENTS_NEAR: u128 = 15_000;
 const VAULT_NEAR: u128 = 2_500;
 const AGENT_NEAR: u128 = 1_000;
 const BYSTANDER_NEAR: u128 = 100;
 /// The owner's wNEAR: 0.1 funds the vault, the rest stays with the owner.
 const WRAP_NEAR: u128 = 200;
 /// Needed in `<root>` before anything is spent: the accounts above, wNEAR, storage and gas.
-const MIN_ROOT_NEAR: u128 = 18_600;
+const MIN_ROOT_NEAR: u128 = 19_600;
 
 fn milli(n: u128) -> NearToken {
     NearToken::from_millinear(n)
@@ -112,12 +113,9 @@ async fn main() -> Result<()> {
             anyhow::Ok(acct)
         }
     };
-    let agent = create("agent", AGENT_NEAR).await?;
-    let shop = create("shop", BYSTANDER_NEAR).await?;
-    let desk = create("desk", BYSTANDER_NEAR).await?;
-    let attacker = create("attacker", BYSTANDER_NEAR).await?;
-
     // 1. Our own Intents instance from the pinned mainnet binary; `<root>` holds its admin roles.
+    // It goes first: it is the costliest step, and a failure here strands no other account (a
+    // crashed run loses the random keys of every account it already created).
     let intents = create("intents", INTENTS_NEAR).await?.deploy(&wasm_intents).await?.into_result()?;
     intents
         .call("new")
@@ -138,6 +136,10 @@ async fn main() -> Result<()> {
         .await?
         .into_result()?;
     println!("deployed the pinned Intents binary to {}", intents.id());
+    let agent = create("agent", AGENT_NEAR).await?;
+    let shop = create("shop", BYSTANDER_NEAR).await?;
+    let desk = create("desk", BYSTANDER_NEAR).await?;
+    let attacker = create("attacker", BYSTANDER_NEAR).await?;
 
     // 2. wNEAR storage for Intents and the owner; the owner wraps 0.2 NEAR.
     let wrap: AccountId = WRAP.parse()?;

@@ -29,7 +29,7 @@ demo-local: build
 	./scripts/demo-local.sh
 
 # Testnet deployment under TESTNET_ACCOUNT (funded, key in ~/.near-credentials/testnet/); writes
-# target/testnet.json. Spends ~18.6 testnet NEAR, most of it Intents' code storage.
+# target/testnet.json. Spends ~19.6 testnet NEAR, most of it Intents' code storage.
 testnet: build
 	cargo run -p security-tests --example testnet
 
