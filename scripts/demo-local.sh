@@ -15,6 +15,9 @@ if [ -f .env ]; then
 fi
 PLANNER="${PLANNER:-scripted}"
 NETWORK="${NETWORK:-devnet}"
+for bin in demo/merchant/node_modules/.bin/tsx app/agent/node_modules/.bin/tsx app/web/node_modules/.bin/vite; do
+  [ -x "$bin" ] || { echo "$bin is missing: run pnpm install first" >&2; exit 1; }
+done
 pids=()
 cleanup() { kill "${pids[@]}" 2>/dev/null || true; wait 2>/dev/null || true; }
 trap cleanup EXIT INT TERM
@@ -47,4 +50,10 @@ pids+=($!)
 pids+=($!)
 
 echo "demo running on $NETWORK: open http://127.0.0.1:5173 (Ctrl-C to stop)"
-wait
+# Any service exiting stops the demo with an error; bash 3.2 (macOS) has no `wait -n`.
+while :; do
+  for pid in "${pids[@]}"; do
+    kill -0 "$pid" 2>/dev/null || { echo "a demo service (pid $pid) exited; stopping" >&2; exit 1; }
+  done
+  sleep 1
+done
