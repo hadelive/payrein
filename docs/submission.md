@@ -33,7 +33,7 @@ https://github.com/hadelive/payrein and the landing page https://payrein.vercel.
 
 ## Demo video
 
-**Recorded 1 November 2026 from the local devnet run** (the take on the submitted X post) and again on 2 November after the second merchant was added (56 s; the stills below are from that take) by `scripts/record-demo.mjs` (headless
+**Recorded 1 November 2026 from the local devnet run** (the take on the submitted X post) and again on 2 November after the second merchant was added (56 s; the stills below are from that take; posted 12 November 2026 as a reply on the demo post, https://x.com/CrissEthan7au/status/2120783204865163565) by `scripts/record-demo.mjs` (headless
 Chrome drives the seven demo buttons, captions each step on screen, records with CDP screencast;
 `ffmpeg` assembles the frames): 55 seconds, 1920×1500, no sound. Stills of the approval card, the
 tampered approval and the full daily bar are in `evidence/video-04-approval.png`,

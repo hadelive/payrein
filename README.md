@@ -116,7 +116,7 @@ Full threat model: [docs/threat-model.md](docs/threat-model.md).
 | The pinned `intents.near` and `wrap.near` binaries equal the live mainnet code: checked 2 November 2026 at block 222693527 | `make check-live`, [evidence/local-run.md](evidence/local-run.md) |
 | Testnet run of 6 November 2026: the bootstrap and every demo check on NEAR testnet, with transaction links, the vault's budget, merchant balances and the key inventory read back from the chain | [evidence/testnet-run.md](evidence/testnet-run.md) |
 | Security review of 2 November 2026 by Codex gpt-6-astra (an AI review, not an audit): findings, their verification and the fixing commits | [docs/review-2026-11-02.md](docs/review-2026-11-02.md) |
-| Demo video of the seven steps above, recorded on the local devnet on 1 November 2026 with `scripts/record-demo.mjs` (55 s, captions on screen); stills of the approval card, the tampered approval and the full daily bar | `evidence/video-*.png`, the video on the X post |
+| Demo video of the seven steps above, recorded on the local devnet with `scripts/record-demo.mjs` (captions on screen): the 1 November take (55 s) on the submitted X post, and the 2 November take with both merchants (56 s) in its reply; stills of the approval card, the tampered approval and the full daily bar | `evidence/video-*.png`, [demo post](https://x.com/CrissEthan7au/status/2117162030889390370), [second take](https://x.com/CrissEthan7au/status/2120783204865163565) |
 
 Test names start with the threat id they cover in the threat model; the mapping is in
 [docs/acceptance.md](docs/acceptance.md).
