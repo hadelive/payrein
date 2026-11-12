@@ -33,6 +33,11 @@ demo-local: build
 testnet: build
 	cargo run -p security-tests --example testnet
 
+# A new agent for that deployment (lost or leaked agent keys): new restricted keys, the owner's
+# set_agent, and a rewritten target/testnet.json. Spends ~1 testnet NEAR.
+testnet-agent:
+	cargo run -p security-tests --example testnet_agent
+
 # The demo's services against that testnet deployment; the owner approves in a testnet wallet.
 demo-testnet:
 	NETWORK=testnet ./scripts/demo-local.sh
